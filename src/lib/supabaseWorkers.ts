@@ -75,31 +75,7 @@ export async function syncWorkersToSupabase(
   try {
     const existingWorkers = await fetchWorkersFromSupabase()
 
-    if (existingWorkers.length > 0) {
-      return existingWorkers
-    }
-
-    const workersByName = new Map(
-      existingWorkers.map((worker) => [worker.name.toLowerCase(), worker]),
-    )
-
-    for (const worker of localWorkers) {
-      const trimmedName = worker.name.trim()
-
-      if (!trimmedName || workersByName.has(trimmedName.toLowerCase())) {
-        continue
-      }
-
-      const createdWorker = await createWorkerInSupabase(trimmedName)
-
-      if (createdWorker) {
-        workersByName.set(createdWorker.name.toLowerCase(), createdWorker)
-      }
-    }
-
-    const finalWorkers = await fetchWorkersFromSupabase()
-
-    return finalWorkers.length > 0 ? finalWorkers : localWorkers
+    return existingWorkers
   } catch (error) {
     warn('Unable to sync workers to Supabase.', error)
     return localWorkers
@@ -165,6 +141,19 @@ export async function deleteWorkerFromSupabase(worker: Worker): Promise<boolean>
 
   if (!workerIdToDelete) {
     return true
+  }
+
+  const { data: rpcDeletedWorker, error: rpcDeleteError } =
+    await supabaseClient.rpc('delete_worker', {
+      worker_id_to_delete: workerIdToDelete,
+    })
+
+  if (!rpcDeleteError && rpcDeletedWorker === true) {
+    return true
+  }
+
+  if (rpcDeleteError) {
+    warn('Unable to delete worker with Supabase RPC. Trying fallback delete.', rpcDeleteError.message)
   }
 
   const deleteWorker = async () =>

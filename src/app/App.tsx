@@ -74,7 +74,7 @@ function loadStoredWorkers() {
   try {
     const parsedWorkers = JSON.parse(storedWorkers) as Worker[]
 
-    if (!Array.isArray(parsedWorkers) || parsedWorkers.length === 0) {
+    if (!Array.isArray(parsedWorkers)) {
       return mockWorkers
     }
 
@@ -180,13 +180,8 @@ function App() {
           return
         }
 
-        if (syncedWorkers.length > 0) {
-          setWorkers(syncedWorkers)
-          setStorageItem(
-            workersStorageKey,
-            JSON.stringify(syncedWorkers),
-          )
-        }
+        setWorkers(syncedWorkers)
+        setStorageItem(workersStorageKey, JSON.stringify(syncedWorkers))
 
         if (syncedTasks.length > 0) {
           saveTasks(syncedTasks)

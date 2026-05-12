@@ -184,6 +184,27 @@ export async function deleteTaskFromSupabase(task: ChecklistTask): Promise<boole
     return true
   }
 
+  const rpcResults = await Promise.all(
+    taskIds.map((taskId) =>
+      supabaseClient.rpc('delete_task', {
+        task_id_to_delete: taskId,
+      }),
+    ),
+  )
+  const rpcHadError = rpcResults.some((result) => result.error)
+  const rpcDeletedAllTasks = rpcResults.every((result) => result.data === true)
+
+  if (!rpcHadError && rpcDeletedAllTasks) {
+    return true
+  }
+
+  if (rpcHadError) {
+    warn(
+      'Unable to delete task with Supabase RPC. Trying fallback delete.',
+      rpcResults.find((result) => result.error)?.error?.message,
+    )
+  }
+
   const deleteTasks = async () =>
     supabaseClient.from('tasks').delete().in('id', taskIds).select('id')
 
