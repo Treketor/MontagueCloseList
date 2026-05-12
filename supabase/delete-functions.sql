@@ -59,7 +59,8 @@ revoke all on function public.delete_task(uuid) from public;
 grant execute on function public.delete_worker(uuid) to anon, authenticated;
 grant execute on function public.delete_task(uuid) to anon, authenticated;
 
-create or replace function public.upsert_task(
+drop function if exists public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean);
+create or replace function public.closelist_upsert_task(
   task_id uuid,
   task_title text,
   task_description text,
@@ -128,5 +129,5 @@ begin
 end;
 $$;
 
-revoke all on function public.upsert_task(uuid, text, text, text, text, integer, boolean) from public;
-grant execute on function public.upsert_task(uuid, text, text, text, text, integer, boolean) to anon, authenticated;
+revoke all on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean) from public;
+grant execute on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean) to anon, authenticated;

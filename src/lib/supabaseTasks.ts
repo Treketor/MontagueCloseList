@@ -95,7 +95,7 @@ export async function saveTaskToSupabase(
     return null
   }
 
-  const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_task', {
+  const { data: rpcData, error: rpcError } = await supabase.rpc('closelist_upsert_task', {
     task_id: isUuid(task.id) ? task.id : null,
     task_title: task.title,
     task_description: task.description ?? null,
