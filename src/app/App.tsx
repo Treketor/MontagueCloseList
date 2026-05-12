@@ -17,7 +17,6 @@ import {
   deleteTaskFromSupabase,
   fetchTasksFromSupabase,
   saveTasksToSupabase,
-  seedTasksToSupabaseIfEmpty,
 } from '../lib/supabaseTasks'
 import {
   createWorkerInSupabase,
@@ -32,7 +31,6 @@ type ScreenKey = 'today' | 'this-week' | 'weekly-cleaning' | 'manage-tasks'
 
 const workersStorageKey = 'closelist_workers'
 const selectedWorkerStorageKey = 'closelist_selected_worker_id'
-const cloudTasksInitializedStorageKey = 'closelist_cloud_tasks_initialized'
 
 const navItems: NavItem<ScreenKey>[] = [
   { key: 'today', label: 'Today' },
@@ -118,7 +116,6 @@ function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenKey>('today')
   const [workers, setWorkers] = useState<Worker[]>(loadStoredWorkers)
   const [tasks, setTasks] = useState<ChecklistTask[]>(loadTasks)
-  const startupTasks = useRef(tasks)
   const startupWorkers = useRef(workers)
   const [isInitialSyncing, setIsInitialSyncing] = useState(isSupabaseConfigured)
   const [hasCloudIssue, setHasCloudIssue] = useState(false)
@@ -172,16 +169,10 @@ function App() {
       try {
         setIsInitialSyncing(true)
 
-        const [syncedWorkers, cloudTasks] = await Promise.all([
+        const [syncedWorkers, syncedTasks] = await Promise.all([
           syncWorkersToSupabase(startupWorkers.current),
           fetchTasksFromSupabase(),
         ])
-        const hasInitializedCloudTasks =
-          getStorageItem(cloudTasksInitializedStorageKey) === 'true'
-        const syncedTasks =
-          cloudTasks.length > 0 || hasInitializedCloudTasks
-            ? cloudTasks
-            : await seedTasksToSupabaseIfEmpty(startupTasks.current)
 
         if (isCancelled) {
           return
@@ -192,7 +183,6 @@ function App() {
 
         saveTasks(syncedTasks)
         setTasks(syncedTasks)
-        setStorageItem(cloudTasksInitializedStorageKey, 'true')
       } catch (error) {
         console.warn('Supabase startup sync failed. Continuing locally.', error)
         setHasCloudIssue(true)
@@ -372,7 +362,6 @@ function App() {
 
       saveTasks(cloudTasks)
       setTasks(cloudTasks)
-      setStorageItem(cloudTasksInitializedStorageKey, 'true')
     } catch (error) {
       console.warn('Unable to delete task from Supabase. Keeping local cache.', error)
       setHasCloudIssue(true)
@@ -399,7 +388,6 @@ function App() {
 
       setTasks(cloudTasks)
       saveTasks(cloudTasks)
-      setStorageItem(cloudTasksInitializedStorageKey, 'true')
 
       setHasCloudIssue(false)
       setSetupDataStatus('Setup data refreshed.')
