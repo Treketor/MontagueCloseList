@@ -76,6 +76,41 @@ export async function upsertClosingChecklistToSupabase(
     return null
   }
 
+  const validItemRows = draft.items
+    .filter((item) => isUuid(item.taskId))
+    .map((item) => ({
+      taskId: item.taskId,
+      isCompleted: item.isCompleted,
+      completedAt: item.completedAt ?? null,
+    }))
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    'closelist_upsert_closing_checklist',
+    {
+      checklist_bar_date: draft.barDate,
+      checklist_worker_id: isUuid(draft.workerId) ? draft.workerId : null,
+      checklist_notes: draft.notes,
+      checklist_submitted_at: draft.submittedAt,
+      checklist_items: validItemRows,
+    },
+  )
+
+  if (!rpcError && rpcData === true) {
+    return {
+      ...draft,
+      workerId: isUuid(draft.workerId) ? draft.workerId : null,
+      items: draft.items.filter((item) => isUuid(item.taskId)),
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  if (rpcError) {
+    warn(
+      'Unable to upsert closing checklist with Supabase RPC. Trying fallback upsert.',
+      rpcError.message,
+    )
+  }
+
   const { data: checklist, error: checklistError } = await supabase
     .from('closing_checklists')
     .upsert(
