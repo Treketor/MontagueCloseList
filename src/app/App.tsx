@@ -14,6 +14,7 @@ import WeeklyCleaningPage from '../pages/WeeklyCleaningPage'
 import { formatReadableDate, getBarDate } from '../lib/date'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
+  deleteTaskFromSupabase,
   fetchTasksFromSupabase,
   saveTasksToSupabase,
   seedTasksToSupabaseIfEmpty,
@@ -272,6 +273,36 @@ function App() {
     }
   }
 
+  async function handleDeleteTask(taskId: string) {
+    const nextTasks = tasks.filter((task) => task.id !== taskId)
+
+    saveTasks(nextTasks)
+    setTasks(nextTasks)
+
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    try {
+      const didDelete = await deleteTaskFromSupabase(taskId)
+
+      if (!didDelete) {
+        setHasCloudIssue(true)
+        return
+      }
+
+      const cloudTasks = await fetchTasksFromSupabase()
+
+      if (cloudTasks.length > 0) {
+        saveTasks(cloudTasks)
+        setTasks(cloudTasks)
+      }
+    } catch (error) {
+      console.warn('Unable to delete task from Supabase. Keeping local cache.', error)
+      setHasCloudIssue(true)
+    }
+  }
+
   async function refreshCloudSetupData() {
     if (!isSupabaseConfigured) {
       setSetupDataStatus('Cloud sync is not configured.')
@@ -339,6 +370,7 @@ function App() {
     ),
     'manage-tasks': (
       <ManageTasksPage
+        onDeleteTask={handleDeleteTask}
         onRefreshCloudData={refreshCloudSetupData}
         onSaveTasks={handleSaveTasks}
         setupDataStatus={setupDataStatus}

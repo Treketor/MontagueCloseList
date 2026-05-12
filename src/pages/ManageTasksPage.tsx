@@ -16,6 +16,7 @@ import { getAllTasksByType } from '../lib/taskStorage'
 import type { ChecklistTask, TaskSection, TaskType } from '../types'
 
 type ManageTasksPageProps = {
+  onDeleteTask: (taskId: string) => Promise<void> | void
   onRefreshCloudData: () => Promise<void> | void
   onSaveTasks: (tasks: ChecklistTask[]) => Promise<void> | void
   setupDataStatus: string
@@ -96,6 +97,7 @@ function getGroupedTasks(tasks: ChecklistTask[]) {
 }
 
 function ManageTasksPage({
+  onDeleteTask,
   onRefreshCloudData,
   onSaveTasks,
   setupDataStatus,
@@ -113,9 +115,7 @@ function ManageTasksPage({
   const [editForm, setEditForm] = useState<TaskFormState>(emptyForm)
   const [editError, setEditError] = useState('')
   const [taskError, setTaskError] = useState('')
-  const [confirmingDisableTaskId, setConfirmingDisableTaskId] = useState<string | null>(
-    null,
-  )
+  const [confirmingDeleteTaskId, setConfirmingDeleteTaskId] = useState<string | null>(null)
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false)
   const [isConfirmingCacheClear, setIsConfirmingCacheClear] = useState(false)
   const diagnostics = getDiagnostics()
@@ -251,7 +251,7 @@ function ManageTasksPage({
 
   function startEditing(task: ChecklistTask) {
     setEditingTaskId(task.id)
-    setConfirmingDisableTaskId(null)
+    setConfirmingDeleteTaskId(null)
     setEditError('')
     setTaskError('')
     setEditForm({
@@ -296,22 +296,11 @@ function ManageTasksPage({
     cancelEditing()
   }
 
-  function setTaskActive(taskId: string, isActive: boolean) {
-    const task = tasks.find((currentTask) => currentTask.id === taskId)
-
-    if (
-      task &&
-      isActive &&
-      hasDuplicateActiveTitle(tasks, task.taskType, task.title, task.id)
-    ) {
-      setTaskError('An active task with this title already exists.')
-      return
-    }
-
-    persistTasks(
-      tasks.map((task) => (task.id === taskId ? { ...task, isActive } : task)),
-    )
-    setConfirmingDisableTaskId(null)
+  function deleteTask(taskId: string) {
+    setTaskError('')
+    setEditingTaskId(null)
+    setConfirmingDeleteTaskId(null)
+    void onDeleteTask(taskId)
   }
 
   function getDiagnosticsText() {
@@ -619,7 +608,7 @@ function ManageTasksPage({
                               </p>
                             ) : null}
                             <p className="mt-3 text-base font-bold text-[#6F6A63]">
-                              {task.section} - {task.isActive ? 'Active' : 'Inactive'}
+                              {task.section}
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-3">
@@ -630,46 +619,36 @@ function ManageTasksPage({
                             >
                               Edit
                             </button>
-                            {task.isActive ? (
-                              confirmingDisableTaskId === task.id ? (
-                                <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                                  <p className="text-lg font-bold text-[#1F1D1A]">
-                                    Disable this task?
-                                  </p>
-                                  <button
-                                    className={secondaryButtonClass}
-                                    onClick={() => setConfirmingDisableTaskId(null)}
-                                    type="button"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    className={darkButtonClass}
-                                    onClick={() => setTaskActive(task.id, false)}
-                                    type="button"
-                                  >
-                                    Disable
-                                  </button>
-                                </div>
-                              ) : (
+                            {confirmingDeleteTaskId === task.id ? (
+                              <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                                <p className="text-lg font-bold text-[#1F1D1A]">
+                                  Remove this task permanently?
+                                </p>
                                 <button
                                   className={secondaryButtonClass}
-                                  onClick={() => {
-                                    setTaskError('')
-                                    setConfirmingDisableTaskId(task.id)
-                                  }}
+                                  onClick={() => setConfirmingDeleteTaskId(null)}
                                   type="button"
                                 >
-                                  Disable
+                                  Cancel
                                 </button>
-                              )
+                                <button
+                                  className={darkButtonClass}
+                                  onClick={() => deleteTask(task.id)}
+                                  type="button"
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             ) : (
                               <button
-                                className={darkButtonClass}
-                                onClick={() => setTaskActive(task.id, true)}
+                                className={secondaryButtonClass}
+                                onClick={() => {
+                                  setTaskError('')
+                                  setConfirmingDeleteTaskId(task.id)
+                                }}
                                 type="button"
                               >
-                                Restore
+                                Remove
                               </button>
                             )}
                           </div>

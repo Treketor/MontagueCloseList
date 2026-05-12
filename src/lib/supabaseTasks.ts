@@ -129,3 +129,41 @@ export async function saveTasksToSupabase(
 
   return savedTasks.length > 0 ? savedTasks : tasks
 }
+
+export async function deleteTaskFromSupabase(taskId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) {
+    return true
+  }
+
+  const { error: closingItemsError } = await supabase
+    .from('closing_checklist_items')
+    .delete()
+    .eq('task_id', taskId)
+
+  if (closingItemsError) {
+    warn('Unable to delete closing checklist task items.', closingItemsError.message)
+    return false
+  }
+
+  const { error: weeklyItemsError } = await supabase
+    .from('weekly_cleaning_items')
+    .delete()
+    .eq('task_id', taskId)
+
+  if (weeklyItemsError) {
+    warn('Unable to delete weekly cleaning task items.', weeklyItemsError.message)
+    return false
+  }
+
+  const { error: taskError } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', taskId)
+
+  if (taskError) {
+    warn('Unable to delete task from Supabase.', taskError.message)
+    return false
+  }
+
+  return true
+}
