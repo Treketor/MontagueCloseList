@@ -274,17 +274,18 @@ function App() {
   }
 
   async function handleDeleteTask(taskId: string) {
+    const taskToDelete = tasks.find((task) => task.id === taskId)
     const nextTasks = tasks.filter((task) => task.id !== taskId)
 
     saveTasks(nextTasks)
     setTasks(nextTasks)
 
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !taskToDelete) {
       return
     }
 
     try {
-      const didDelete = await deleteTaskFromSupabase(taskId)
+      const didDelete = await deleteTaskFromSupabase(taskToDelete)
 
       if (!didDelete) {
         setHasCloudIssue(true)

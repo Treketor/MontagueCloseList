@@ -130,15 +130,46 @@ export async function saveTasksToSupabase(
   return savedTasks.length > 0 ? savedTasks : tasks
 }
 
-export async function deleteTaskFromSupabase(taskId: string): Promise<boolean> {
+async function findTaskIdsForDelete(task: ChecklistTask) {
+  if (!supabase) {
+    return []
+  }
+
+  if (isUuid(task.id)) {
+    return [task.id]
+  }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('title', task.title)
+    .eq('task_type', task.taskType)
+    .eq('section', task.section)
+
+  if (error) {
+    warn('Unable to find matching task rows to delete.', error.message)
+    return []
+  }
+
+  return ((data ?? []) as Pick<TaskRow, 'id'>[]).map((row) => row.id)
+}
+
+export async function deleteTaskFromSupabase(task: ChecklistTask): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) {
     return true
+  }
+
+  const taskIds = await findTaskIdsForDelete(task)
+
+  if (taskIds.length === 0) {
+    warn('No matching Supabase task row found to delete.', task.id)
+    return false
   }
 
   const { error: closingItemsError } = await supabase
     .from('closing_checklist_items')
     .delete()
-    .eq('task_id', taskId)
+    .in('task_id', taskIds)
 
   if (closingItemsError) {
     warn('Unable to delete closing checklist task items.', closingItemsError.message)
@@ -148,20 +179,24 @@ export async function deleteTaskFromSupabase(taskId: string): Promise<boolean> {
   const { error: weeklyItemsError } = await supabase
     .from('weekly_cleaning_items')
     .delete()
-    .eq('task_id', taskId)
+    .in('task_id', taskIds)
 
   if (weeklyItemsError) {
     warn('Unable to delete weekly cleaning task items.', weeklyItemsError.message)
     return false
   }
 
-  const { error: taskError } = await supabase
+  const { data: deletedTasks, error: taskError } = await supabase
     .from('tasks')
     .delete()
-    .eq('id', taskId)
+    .in('id', taskIds)
+    .select('id')
 
-  if (taskError) {
-    warn('Unable to delete task from Supabase.', taskError.message)
+  if (taskError || !deletedTasks || deletedTasks.length === 0) {
+    warn(
+      'Unable to delete task from Supabase.',
+      taskError?.message ?? 'No task rows were deleted.',
+    )
     return false
   }
 
