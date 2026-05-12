@@ -3,6 +3,7 @@ import type { ChecklistTask } from '../types'
 
 type ChecklistTaskRowProps = {
   completedAt?: string
+  disabled?: boolean
   isCompleted: boolean
   onToggle: () => void
   task: ChecklistTask
@@ -10,6 +11,7 @@ type ChecklistTaskRowProps = {
 
 function ChecklistTaskRow({
   completedAt,
+  disabled = false,
   isCompleted,
   onToggle,
   task,
@@ -17,7 +19,11 @@ function ChecklistTaskRow({
   return (
     <button
       aria-pressed={isCompleted}
-      className="flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+      className={[
+        'flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFFCF7]',
+        disabled ? 'cursor-not-allowed opacity-55' : 'active:bg-[#EFE8DD]',
+      ].join(' ')}
+      disabled={disabled}
       onClick={onToggle}
       type="button"
     >
@@ -32,7 +38,8 @@ function ChecklistTaskRow({
       >
         {isCompleted ? <Check className="h-4 w-4" /> : null}
       </span>
-      <span className="min-w-0">
+      <span className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+        <span className="min-w-0">
         <span
           className={[
             'block text-base font-bold leading-tight',
@@ -51,8 +58,9 @@ function ChecklistTaskRow({
             {task.description}
           </span>
         ) : null}
+        </span>
         {isCompleted && completedAt ? (
-          <span className="mt-2 block text-sm font-semibold text-[#6F6A63]">
+          <span className="block whitespace-nowrap text-right text-sm font-semibold text-[#6F6A63]">
             Completed {new Date(completedAt).toLocaleTimeString([], {
               hour: 'numeric',
               minute: '2-digit',

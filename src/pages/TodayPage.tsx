@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ChecklistTaskRow from '../components/ChecklistTaskRow'
 import HomeScreenHint from '../components/HomeScreenHint'
-import PrimaryButton from '../components/PrimaryButton'
 import ProgressBar from '../components/ProgressBar'
 import SectionCard from '../components/SectionCard'
 import StatusMessage from '../components/StatusMessage'
@@ -55,14 +54,6 @@ function groupTasksBySection(tasks: ChecklistTask[]) {
 
 function getItemState(draft: DailyChecklistDraft, taskId: string) {
   return draft.items.find((item) => item.taskId === taskId)
-}
-
-function getSubmittedTime(submittedAt: string) {
-  return new Date(submittedAt).toLocaleString([], {
-    weekday: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
 }
 
 function getUpdatedTime(updatedAt: string) {
@@ -132,7 +123,6 @@ function TodayPage({
   })
   const completedCount = draft.items.filter((item) => item.isCompleted).length
   const totalCount = draft.items.length
-  const isComplete = totalCount > 0 && completedCount === totalCount
   const remainingCount = Math.max(totalCount - completedCount, 0)
 
   useEffect(() => {
@@ -258,6 +248,11 @@ function TodayPage({
   }
 
   function handleToggleTask(taskId: string) {
+    if (!selectedWorkerId) {
+      setWarning('Select a worker before checking off tasks.')
+      return
+    }
+
     setWarning('')
     setSyncStatus('Saved on this device')
     draftRevision.current += 1
@@ -298,28 +293,6 @@ function TodayPage({
     )
   }
 
-  function handleSubmit() {
-    if (!selectedWorkerId) {
-      setWarning('Select who is closing before submitting.')
-      return
-    }
-
-    if (!isComplete) {
-      setWarning('Complete all tasks before submitting.')
-      return
-    }
-
-    setWarning('')
-    setSyncStatus('Saved on this device')
-    draftRevision.current += 1
-    setDraft((currentDraft) =>
-      updateDraft(currentDraft, {
-        workerId: selectedWorkerId,
-        submittedAt: new Date().toISOString(),
-      }),
-    )
-  }
-
   return (
     <div className="grid gap-4">
       <HomeScreenHint />
@@ -333,7 +306,7 @@ function TodayPage({
 
       {!selectedWorker ? (
         <StatusMessage tone="warning">
-          Select a worker before submitting the close.
+          Select a worker before starting the close.
         </StatusMessage>
       ) : null}
 
@@ -364,15 +337,6 @@ function TodayPage({
             <StatusMessage>Loading checklist...</StatusMessage>
           ) : null}
 
-          {draft.submittedAt ? (
-            <StatusMessage tone="success">
-              <p className="text-xl font-bold">Closing checklist submitted.</p>
-              <p className="mt-2 text-base text-[#6F6A63]">
-                Submitted {getSubmittedTime(draft.submittedAt)}
-              </p>
-            </StatusMessage>
-          ) : null}
-
           {taskGroups.map((group) => {
             const sectionCompleted = group.tasks.filter(
               (task) => getItemState(draft, task.id)?.isCompleted,
@@ -396,6 +360,7 @@ function TodayPage({
                     <li key={task.id}>
                       <ChecklistTaskRow
                         completedAt={itemState?.completedAt}
+                        disabled={!selectedWorkerId}
                         isCompleted={itemState?.isCompleted ?? false}
                         onToggle={() => handleToggleTask(task.id)}
                         task={task}
@@ -421,12 +386,6 @@ function TodayPage({
           {warning ? (
             <StatusMessage tone="warning">{warning}</StatusMessage>
           ) : null}
-
-          <div className="sticky bottom-0 border-t border-[#DED8CF] bg-[#FFFCF7]/95 pt-4 pb-[var(--safe-area-bottom)]">
-            <PrimaryButton className="w-full" onClick={handleSubmit}>
-              Submit Close
-            </PrimaryButton>
-          </div>
         </div>
       </SectionCard>
     </div>

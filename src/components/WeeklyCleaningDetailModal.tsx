@@ -1,16 +1,18 @@
-import { formatReadableDate } from '../lib/date'
 import { Check } from 'lucide-react'
+import { formatReadableDate } from '../lib/date'
+import { getWorkerName } from '../lib/workers'
 import type {
   ChecklistTask,
-  DailyChecklistDraft,
   TaskSection,
+  WeeklyCleaningDraft,
+  Worker,
 } from '../types'
 
-type ChecklistDetailModalProps = {
-  checklist: DailyChecklistDraft | null
+type WeeklyCleaningDetailModalProps = {
+  draft: WeeklyCleaningDraft | null
   onClose: () => void
   tasks: ChecklistTask[]
-  workerName: string
+  workers: Worker[]
 }
 
 const sectionOrder: TaskSection[] = [
@@ -24,7 +26,7 @@ const sectionOrder: TaskSection[] = [
 
 function getGroupedTasks(
   tasks: ChecklistTask[],
-  itemStates: Map<string, DailyChecklistDraft['items'][number]>,
+  itemStates: Map<string, WeeklyCleaningDraft['items'][number]>,
 ) {
   const knownTaskIds = new Set(tasks.map((task) => task.id))
   const unknownTasks: ChecklistTask[] = Array.from(itemStates.keys())
@@ -33,7 +35,7 @@ function getGroupedTasks(
       id: taskId,
       title: 'Unknown task',
       section: 'Other',
-      taskType: 'daily_closing',
+      taskType: 'weekly_cleaning',
       sortOrder: 100000 + index,
       isActive: false,
     }))
@@ -49,20 +51,29 @@ function getGroupedTasks(
     .filter((group) => group.tasks.length > 0)
 }
 
-function ChecklistDetailModal({
-  checklist,
+function formatCompletedTime(completedAt: string) {
+  return new Date(completedAt).toLocaleString([], {
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function WeeklyCleaningDetailModal({
+  draft,
   onClose,
   tasks,
-  workerName,
-}: ChecklistDetailModalProps) {
-  if (!checklist) {
+  workers,
+}: WeeklyCleaningDetailModalProps) {
+  if (!draft) {
     return null
   }
 
-  const itemStates = new Map(
-    checklist.items.map((item) => [item.taskId, item]),
-  )
+  const itemStates = new Map(draft.items.map((item) => [item.taskId, item]))
   const groupedTasks = getGroupedTasks(tasks, itemStates)
+  const weekEndDate = new Date(`${draft.weekStartDate}T00:00:00`)
+  weekEndDate.setDate(weekEndDate.getDate() + 6)
+  const weekEndDateString = weekEndDate.toISOString().slice(0, 10)
 
   return (
     <div className="fixed inset-0 z-50 bg-[#1F1D1A]/70 p-4 sm:p-8">
@@ -70,9 +81,11 @@ function ChecklistDetailModal({
         <div className="flex items-start justify-between gap-4 border-b border-[#DED8CF] p-5">
           <div>
             <p className="text-3xl font-extrabold leading-tight">
-              {formatReadableDate(checklist.barDate)}
+              Weekly cleaning
             </p>
-            <p className="mt-2 text-xl font-semibold text-[#6F6A63]">{workerName}</p>
+            <p className="mt-2 text-xl font-semibold text-[#6F6A63]">
+              {formatReadableDate(draft.weekStartDate)} - {formatReadableDate(weekEndDateString)}
+            </p>
           </div>
           <button
             className="min-h-12 shrink-0 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
@@ -84,22 +97,13 @@ function ChecklistDetailModal({
         </div>
 
         <div className="grid gap-6 overflow-y-auto p-5">
-          {checklist.notes.trim() ? (
-            <section className="rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4">
-              <h3 className="text-2xl font-extrabold">Close notes</h3>
-              <p className="mt-3 whitespace-pre-wrap text-xl leading-relaxed text-[#6F6A63]">
-                {checklist.notes}
-              </p>
-            </section>
-          ) : null}
-
           {groupedTasks.map((group) => (
             <section key={group.section}>
               <h3 className="mb-2 text-2xl font-extrabold">{group.section}</h3>
               <ul>
                 {group.tasks.map((task) => {
-                  const isCompleted =
-                    itemStates.get(task.id)?.isCompleted ?? false
+                  const itemState = itemStates.get(task.id)
+                  const isCompleted = itemState?.isCompleted ?? false
 
                   return (
                     <li
@@ -125,14 +129,16 @@ function ChecklistDetailModal({
                             {task.description}
                           </p>
                         ) : null}
-                        <p
-                          className={[
-                            'mt-2 text-lg font-semibold',
-                            isCompleted ? 'text-[#6F6A63]' : 'text-[#1F1D1A]',
-                          ].join(' ')}
-                        >
-                          {isCompleted ? 'Completed' : 'Missed'}
+                        <p className="mt-2 text-lg font-semibold text-[#6F6A63]">
+                          {isCompleted
+                            ? `Completed by ${getWorkerName(workers, itemState?.workerId)}`
+                            : 'Not completed'}
                         </p>
+                        {isCompleted && itemState?.completedAt ? (
+                          <p className="mt-1 text-base font-semibold text-[#6F6A63]">
+                            {formatCompletedTime(itemState.completedAt)}
+                          </p>
+                        ) : null}
                       </div>
                     </li>
                   )
@@ -146,4 +152,4 @@ function ChecklistDetailModal({
   )
 }
 
-export default ChecklistDetailModal
+export default WeeklyCleaningDetailModal

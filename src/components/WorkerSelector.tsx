@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { UserRound } from 'lucide-react'
+import { Plus, UserRound } from 'lucide-react'
 import type { Worker } from '../types'
 
 type WorkerSelectorProps = {
@@ -111,13 +111,14 @@ function WorkerSelector({
             ))}
 
             <button
-              className="min-h-11 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-3 text-base font-bold leading-tight text-[#FFFCF7] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7] active:bg-[#3A352F]"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-3 text-base font-bold leading-tight text-[#FFFCF7] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7] active:bg-[#3A352F]"
               onClick={() => {
                 setIsAddingWorker(true)
                 setError('')
               }}
               type="button"
             >
+              <Plus aria-hidden="true" className="h-4 w-4" />
               Add Worker
             </button>
           </div>

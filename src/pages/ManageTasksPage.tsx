@@ -1,4 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
 import PageHeader from '../components/PageHeader'
 import PrimaryButton from '../components/PrimaryButton'
 import SectionCard from '../components/SectionCard'
@@ -33,6 +40,8 @@ const taskTypes: { label: string; value: TaskType }[] = [
   { label: 'Daily Close', value: 'daily_closing' },
   { label: 'Weekly Cleaning', value: 'weekly_cleaning' },
 ]
+const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', 'Delete']
+const managerCodeLength = 4
 const emptyForm: TaskFormState = {
   description: '',
   section: 'Bar',
@@ -116,8 +125,10 @@ function ManageTasksPage({
   )
   const groupedTasks = useMemo(() => getGroupedTasks(visibleTasks), [visibleTasks])
 
-  async function handleUnlock(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  const verifyCode = useCallback(async () => {
+    if (isVerifyingCode || code.length !== managerCodeLength) {
+      return
+    }
 
     setIsVerifyingCode(true)
     setUnlockError('')
@@ -136,10 +147,64 @@ function ManageTasksPage({
           ? 'Incorrect manager code.'
           : 'Could not verify manager code.',
       )
+      setCode('')
     } catch {
       setUnlockError('Could not verify manager code.')
+      setCode('')
     } finally {
       setIsVerifyingCode(false)
+    }
+  }, [code, isVerifyingCode])
+
+  useEffect(() => {
+    if (code.length === managerCodeLength && !isVerifyingCode) {
+      void verifyCode()
+    }
+  }, [code, isVerifyingCode, verifyCode])
+
+  function handleUnlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void verifyCode()
+  }
+
+  function handleKeypadInput(key: string) {
+    if (isVerifyingCode) {
+      return
+    }
+
+    setUnlockError('')
+
+    if (key === 'Clear') {
+      setCode('')
+      return
+    }
+
+    if (key === 'Delete') {
+      setCode((currentCode) => currentCode.slice(0, -1))
+      return
+    }
+
+    setCode((currentCode) =>
+      currentCode.length >= managerCodeLength ? currentCode : `${currentCode}${key}`,
+    )
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      void verifyCode()
+      return
+    }
+
+    if (event.key === 'Backspace') {
+      event.preventDefault()
+      handleKeypadInput('Delete')
+      return
+    }
+
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault()
+      handleKeypadInput(event.key)
     }
   }
 
@@ -294,29 +359,79 @@ function ManageTasksPage({
 
   if (!isUnlocked) {
     return (
-      <div className="grid gap-6">
-        <PageHeader title="Manage Tasks" description="Task editing is manager-only." />
+      <div className="grid gap-4">
+        <div className="mx-auto w-full max-w-lg">
         <SectionCard>
-          <form className="grid gap-4" onSubmit={handleUnlock}>
-            <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-              Manager code
-              <input
-                className={inputClass}
-                inputMode="numeric"
-                disabled={isVerifyingCode}
-                onChange={(event) => setCode(event.target.value)}
-                type="password"
-                value={code}
-              />
-            </label>
+          <form
+            className="mx-auto grid max-w-xs gap-4 py-1"
+            onKeyDown={handleKeyDown}
+            onSubmit={handleUnlock}
+          >
+            <div>
+              <p className="mb-3 text-center text-base font-bold text-[#6F6A63]">
+                Manager code
+              </p>
+              <div className="flex min-h-10 items-center justify-center px-4">
+                <p
+                  aria-label={`${code.length} digits entered`}
+                  className="sr-only"
+                >
+                  {code ? '•'.repeat(code.length) : '○○○○'}
+                </p>
+                <div className="flex gap-3" aria-hidden="true">
+                  {Array.from({ length: managerCodeLength }, (_, index) => (
+                    <span
+                      className={[
+                        'h-3.5 w-3.5 rounded-full border',
+                        index < code.length
+                          ? 'border-[#1F1D1A] bg-[#1F1D1A]'
+                          : 'border-[#CFC7BC] bg-transparent',
+                      ].join(' ')}
+                      key={index}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {unlockError ? (
               <StatusMessage tone="warning">{unlockError}</StatusMessage>
-            ) : null}
-            <PrimaryButton disabled={isVerifyingCode} type="submit">
-              {isVerifyingCode ? 'Checking...' : 'Unlock'}
-            </PrimaryButton>
+            ) : isVerifyingCode ? (
+              <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
+                Checking...
+              </div>
+            ) : (
+              <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
+                Enter the manager code to edit tasks.
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 justify-items-center gap-3">
+              {keypadKeys.map((key) => {
+                const isUtilityKey = key === 'Clear' || key === 'Delete'
+
+                return (
+                  <button
+                    className={[
+                      'flex h-16 w-20 items-center justify-center rounded-2xl border font-extrabold focus:outline-none',
+                      isUtilityKey
+                        ? 'border-transparent bg-transparent text-sm text-[#6F6A63] active:bg-[#EFE8DD]'
+                        : 'border-[#DED8CF] bg-[#F7F4EF] text-2xl text-[#1F1D1A] active:bg-[#EFE8DD]',
+                    ].join(' ')}
+                    disabled={isVerifyingCode}
+                    key={key}
+                    onClick={() => handleKeypadInput(key)}
+                    type="button"
+                  >
+                    {key}
+                  </button>
+                )
+              })}
+            </div>
+
           </form>
         </SectionCard>
+        </div>
       </div>
     )
   }

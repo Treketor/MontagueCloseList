@@ -30,7 +30,7 @@ function WeeklyCleaningTaskRow({
     <button
       aria-pressed={isCompleted}
       className={[
-        'flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]',
+        'flex min-h-16 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFFCF7]',
         disabled ? 'cursor-not-allowed opacity-55' : 'active:bg-[#EFE8DD]',
       ].join(' ')}
       disabled={disabled}
@@ -48,30 +48,38 @@ function WeeklyCleaningTaskRow({
       >
         {isCompleted ? <Check className="h-4 w-4" /> : null}
       </span>
-      <span className="min-w-0">
-        <span
-          className={[
-            'block text-base font-bold leading-tight',
-            isCompleted ? 'text-[#6F6A63]' : 'text-[#1F1D1A]',
-          ].join(' ')}
-        >
-          {task.title}
-        </span>
-        {task.description ? (
-          <span className="mt-1 block text-sm leading-relaxed text-[#6F6A63]">
-            {task.description}
+      <span className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+        <span className="min-w-0">
+          <span
+            className={[
+              'block text-base font-bold leading-tight',
+              isCompleted ? 'text-[#6F6A63]' : 'text-[#1F1D1A]',
+            ].join(' ')}
+          >
+            {task.title}
           </span>
-        ) : null}
-        <span className="mt-1.5 block text-sm font-semibold text-[#6F6A63]">
-          {isCompleted && completedByName
-            ? `Completed by ${completedByName}`
-            : 'Not completed'}
+          {task.description ? (
+            <span className="mt-1 block text-sm leading-relaxed text-[#6F6A63]">
+              {task.description}
+            </span>
+          ) : null}
         </span>
-        {isCompleted && completedAt ? (
-          <span className="mt-1 block text-sm font-semibold text-[#6F6A63]">
-            {formatCompletedTime(completedAt)}
-          </span>
-        ) : null}
+        <span className="flex min-h-10 flex-col justify-start text-right text-sm font-semibold text-[#6F6A63]">
+          {isCompleted && completedByName ? (
+            <>
+              <span className="block whitespace-nowrap">
+                Completed by {completedByName}
+              </span>
+              {completedAt ? (
+                <span className="mt-1 block whitespace-nowrap">
+                  {formatCompletedTime(completedAt)}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="block whitespace-nowrap">Not completed</span>
+          )}
+        </span>
       </span>
     </button>
   )

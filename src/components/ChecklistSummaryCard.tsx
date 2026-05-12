@@ -4,7 +4,7 @@ import type { DailyChecklistDraft } from '../types'
 type ChecklistSummaryCardProps = {
   checklist: DailyChecklistDraft
   completed: number
-  isSubmitted: boolean
+  isComplete: boolean
   onOpen: () => void
   total: number
   workerName: string
@@ -13,18 +13,11 @@ type ChecklistSummaryCardProps = {
 function ChecklistSummaryCard({
   checklist,
   completed,
-  isSubmitted,
+  isComplete,
   onOpen,
   total,
   workerName,
 }: ChecklistSummaryCardProps) {
-  const submittedTime = checklist.submittedAt
-    ? new Date(checklist.submittedAt).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : null
-
   return (
     <button
       className="grid w-full gap-4 rounded-2xl border border-[#DED8CF] bg-[#FFFCF7] p-5 text-left active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]"
@@ -41,7 +34,7 @@ function ChecklistSummaryCard({
           </p>
         </div>
         <p className="text-base font-extrabold text-[#1F1D1A]">
-          {isSubmitted ? 'Submitted' : 'Incomplete'}
+          {isComplete ? 'Complete' : 'Incomplete'}
         </p>
       </div>
 
@@ -49,11 +42,6 @@ function ChecklistSummaryCard({
         <p className="text-lg font-bold text-[#6F6A63]">
           {completed} of {total} complete
         </p>
-        {submittedTime ? (
-          <p className="mt-1 text-sm font-semibold text-[#6F6A63]">
-            Submitted {submittedTime}
-          </p>
-        ) : null}
       </div>
     </button>
   )

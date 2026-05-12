@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import PrimaryButton from '../components/PrimaryButton'
 import ProgressBar from '../components/ProgressBar'
@@ -29,8 +30,6 @@ type WeeklyCleaningPageProps = {
   isCloudSyncEnabled: boolean
   onCreateWorker: (name: string) => Promise<Worker | null> | Worker | null
   onHeaderStatusChange: (status: string) => void
-  onSelectWorker: (workerId: string | null) => void
-  selectedWorkerId: string
   weeklyCleaningTasks: ChecklistTask[]
   workers: Worker[]
 }
@@ -85,12 +84,12 @@ function WeeklyCleaningPage({
   isCloudSyncEnabled,
   onCreateWorker,
   onHeaderStatusChange,
-  onSelectWorker,
-  selectedWorkerId,
   weeklyCleaningTasks,
   workers,
 }: WeeklyCleaningPageProps) {
   const [warning, setWarning] = useState('')
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
+  const [pendingWorkerId, setPendingWorkerId] = useState<string | null>(null)
   const [syncStatus, setSyncStatus] = useState('Saved on this device')
   const [isLoadingDraft, setIsLoadingDraft] = useState(isCloudSyncEnabled)
   const [isDraftLoaded, setIsDraftLoaded] = useState(!isCloudSyncEnabled)
@@ -279,13 +278,45 @@ function WeeklyCleaningPage({
   }, [draft, isCloudSyncEnabled, isDraftLoaded])
 
   function handleSelectWorker(workerId: string | null) {
-    onSelectWorker(workerId)
+    setPendingWorkerId(workerId)
     setWarning('')
+
+    if (workerId && pendingTaskId) {
+      completeTask(pendingTaskId, workerId)
+      setPendingTaskId(null)
+      setPendingWorkerId(null)
+    }
+  }
+
+  function completeTask(taskId: string, workerId: string) {
+    setWarning('')
+    setSyncStatus('Saved on this device')
+    draftRevision.current += 1
+    setDraft((currentDraft) =>
+      updateDraft(currentDraft, {
+        items: currentDraft.items.map((item) => {
+          if (item.taskId !== taskId) {
+            return item
+          }
+
+          return {
+            taskId: item.taskId,
+            isCompleted: true,
+            workerId,
+            completedAt: new Date().toISOString(),
+          }
+        }),
+      }),
+    )
   }
 
   function handleToggleTask(taskId: string) {
-    if (!selectedWorkerId) {
-      setWarning('Select who is completing cleaning tasks before checking items.')
+    const itemState = getItemState(draft, taskId)
+
+    if (!itemState?.isCompleted) {
+      setPendingTaskId(taskId)
+      setPendingWorkerId(null)
+      setWarning('Select who completed this cleaning task.')
       return
     }
 
@@ -310,7 +341,7 @@ function WeeklyCleaningPage({
           return {
             taskId: item.taskId,
             isCompleted: true,
-            workerId: selectedWorkerId,
+            workerId: item.workerId,
             completedAt: new Date().toISOString(),
           }
         }),
@@ -320,19 +351,18 @@ function WeeklyCleaningPage({
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Weekly Cleaning" description={readableWeekRange} />
-        <PrimaryButton className="mt-1 shrink-0" onClick={() => void loadDraft()}>
+      <div className="grid gap-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="text-left sm:[&>div]:mb-0 sm:[&>div]:text-left">
+          <PageHeader title="Weekly Cleaning" description={readableWeekRange} />
+        </div>
+        <PrimaryButton
+          className="inline-flex shrink-0 items-center justify-center gap-2"
+          onClick={() => void loadDraft()}
+        >
+          <RefreshCw aria-hidden="true" className="h-4 w-4" />
           Refresh
         </PrimaryButton>
       </div>
-
-      <WorkerSelector
-        onCreateWorker={onCreateWorker}
-        onSelectWorker={handleSelectWorker}
-        selectedWorkerId={selectedWorkerId}
-        workers={workers}
-      />
 
       <SectionCard>
         <div className="grid gap-4">
@@ -345,12 +375,6 @@ function WeeklyCleaningPage({
 
           {isLoadingDraft ? (
             <StatusMessage>Loading weekly cleaning...</StatusMessage>
-          ) : null}
-
-          {!selectedWorkerId ? (
-            <StatusMessage tone="warning">
-              Select who is completing cleaning tasks before checking items.
-            </StatusMessage>
           ) : null}
 
           {warning ? (
@@ -384,7 +408,6 @@ function WeeklyCleaningPage({
                       <WeeklyCleaningTaskRow
                         completedAt={itemState?.completedAt}
                         completedByName={completedByName}
-                        disabled={!selectedWorkerId}
                         isCompleted={itemState?.isCompleted ?? false}
                         onToggle={() => handleToggleTask(task.id)}
                         task={task}
@@ -398,6 +421,41 @@ function WeeklyCleaningPage({
           })}
         </div>
       </SectionCard>
+
+      {pendingTaskId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1D1A]/70 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-[#FFFCF7] p-5 text-[#1F1D1A] shadow-[0_20px_60px_rgba(31,29,26,0.18)]">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-extrabold">
+                  Who completed this?
+                </h2>
+                <p className="mt-1 text-base font-semibold text-[#6F6A63]">
+                  Select a worker to mark the cleaning task complete.
+                </p>
+              </div>
+              <button
+                className="min-h-11 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-5 text-base font-bold text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+                onClick={() => {
+                  setPendingTaskId(null)
+                  setPendingWorkerId(null)
+                  setWarning('')
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <WorkerSelector
+              onCreateWorker={onCreateWorker}
+              onSelectWorker={handleSelectWorker}
+              selectedWorkerId={pendingWorkerId}
+              workers={workers}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

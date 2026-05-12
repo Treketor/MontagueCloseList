@@ -32,8 +32,8 @@ const selectedWorkerStorageKey = 'closelist_selected_worker_id'
 
 const navItems: NavItem<ScreenKey>[] = [
   { key: 'today', label: 'Today' },
-  { key: 'this-week', label: 'History' },
-  { key: 'weekly-cleaning', label: 'Cleaning' },
+  { key: 'this-week', label: 'Closes' },
+  { key: 'weekly-cleaning', label: 'Weekly Cleaning' },
   { key: 'manage-tasks', label: 'Manage' },
 ]
 
@@ -218,7 +218,6 @@ function App() {
     )
 
     if (duplicateWorker) {
-      setSelectedWorkerId(duplicateWorker.id)
       return duplicateWorker
     }
 
@@ -232,7 +231,6 @@ function App() {
       const nextWorkers = mergeWorkers(workers, [createdWorker])
       setWorkers(nextWorkers)
       setStorageItem(workersStorageKey, JSON.stringify(nextWorkers))
-      setSelectedWorkerId(createdWorker.id)
 
       return createdWorker
     }
@@ -245,7 +243,6 @@ function App() {
 
     setWorkers(nextWorkers)
     setStorageItem(workersStorageKey, JSON.stringify(nextWorkers))
-    setSelectedWorkerId(newWorker.id)
 
     return newWorker
   }
@@ -336,8 +333,6 @@ function App() {
         isCloudSyncEnabled={isSupabaseConfigured}
         onCreateWorker={handleCreateWorker}
         onHeaderStatusChange={setHeaderSyncDetail}
-        onSelectWorker={handleSelectWorker}
-        selectedWorkerId={activeWorkerId}
         weeklyCleaningTasks={weeklyCleaningTasks}
         workers={workers}
       />
