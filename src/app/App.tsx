@@ -331,10 +331,9 @@ function App() {
     try {
       const syncedTasks = await saveTasksToSupabase(nextTasks)
 
-      if (syncedTasks.length > 0) {
-        saveTasks(syncedTasks)
-        setTasks(syncedTasks)
-      }
+      saveTasks(syncedTasks)
+      setTasks(syncedTasks)
+      setHasCloudIssue(false)
     } catch (error) {
       console.warn('Unable to save tasks to Supabase. Keeping local cache.', error)
       setHasCloudIssue(true)

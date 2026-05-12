@@ -95,6 +95,24 @@ export async function saveTaskToSupabase(
     return null
   }
 
+  const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_task', {
+    task_id: isUuid(task.id) ? task.id : null,
+    task_title: task.title,
+    task_description: task.description ?? null,
+    task_section: task.section,
+    task_type_value: task.taskType,
+    task_sort_order: task.sortOrder,
+    task_is_active: task.isActive,
+  })
+
+  if (!rpcError && rpcData) {
+    return mapTaskRow(rpcData as TaskRow)
+  }
+
+  if (rpcError) {
+    warn('Unable to save task with Supabase RPC. Trying fallback upsert.', rpcError.message)
+  }
+
   const { data, error } = await supabase
     .from('tasks')
     .upsert(mapTaskToInsert(task), { onConflict: 'id' })
@@ -116,18 +134,21 @@ export async function saveTasksToSupabase(
     return tasks
   }
 
-  const { error } = await supabase
-    .from('tasks')
-    .upsert(tasks.map(mapTaskToInsert), { onConflict: 'id' })
+  if (tasks.length === 0) {
+    return fetchTasksFromSupabase()
+  }
 
-  if (error) {
-    warn('Unable to save tasks to Supabase.', error.message)
-    return tasks
+  for (const task of tasks) {
+    const savedTask = await saveTaskToSupabase(task)
+
+    if (!savedTask) {
+      throw new Error(`Unable to save task "${task.title}" to Supabase.`)
+    }
   }
 
   const savedTasks = await fetchTasksFromSupabase()
 
-  return savedTasks.length > 0 ? savedTasks : tasks
+  return savedTasks
 }
 
 async function findTaskIdsForDelete(task: ChecklistTask) {
