@@ -4,6 +4,7 @@ import type {
   ClosingChecklistItemRow,
   ClosingChecklistRow,
 } from '../types.supabase'
+import { isUuid } from './ids'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 function warn(message: string, detail?: unknown) {
@@ -80,7 +81,7 @@ export async function upsertClosingChecklistToSupabase(
     .upsert(
       {
         bar_date: draft.barDate,
-        worker_id: draft.workerId,
+        worker_id: isUuid(draft.workerId) ? draft.workerId : null,
         notes: draft.notes,
         submitted_at: draft.submittedAt,
         updated_at: new Date().toISOString(),
@@ -99,12 +100,24 @@ export async function upsertClosingChecklistToSupabase(
   }
 
   const checklistRow = checklist as ClosingChecklistRow
-  const itemRows: ClosingChecklistItemInsert[] = draft.items.map((item) => ({
-    checklist_id: checklistRow.id,
-    task_id: item.taskId,
-    is_completed: item.isCompleted,
-    completed_at: item.completedAt ?? null,
-  }))
+  const itemRows: ClosingChecklistItemInsert[] = draft.items
+    .filter((item) => isUuid(item.taskId))
+    .map((item) => ({
+      checklist_id: checklistRow.id,
+      task_id: item.taskId,
+      is_completed: item.isCompleted,
+      completed_at: item.completedAt ?? null,
+    }))
+
+  if (itemRows.length !== draft.items.length) {
+    warn(
+      'Skipped daily checklist items with local-only task IDs. Refresh cloud data before completing those tasks.',
+    )
+  }
+
+  if (itemRows.length === 0) {
+    return mapRowsToDraft(checklistRow, [])
+  }
 
   const { error: itemsError } = await supabase
     .from('closing_checklist_items')
@@ -115,12 +128,12 @@ export async function upsertClosingChecklistToSupabase(
     return null
   }
 
-  return mapRowsToDraft(checklistRow, draft.items.map((item) => ({
+  return mapRowsToDraft(checklistRow, itemRows.map((item) => ({
     id: '',
     checklist_id: checklistRow.id,
-    task_id: item.taskId,
-    is_completed: item.isCompleted,
-    completed_at: item.completedAt ?? null,
+    task_id: item.task_id,
+    is_completed: item.is_completed,
+    completed_at: item.completed_at ?? null,
   })))
 }
 

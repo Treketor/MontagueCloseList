@@ -4,6 +4,7 @@ import type {
   WeeklyCleaningItemRow,
   WeeklyCleaningRunRow,
 } from '../types.supabase'
+import { isUuid } from './ids'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 function warn(message: string, detail?: unknown) {
@@ -94,13 +95,25 @@ export async function upsertWeeklyCleaningDraftToSupabase(
   }
 
   const runRow = run as WeeklyCleaningRunRow
-  const itemRows: WeeklyCleaningItemInsert[] = draft.items.map((item) => ({
-    weekly_run_id: runRow.id,
-    task_id: item.taskId,
-    is_completed: item.isCompleted,
-    worker_id: item.workerId,
-    completed_at: item.completedAt ?? null,
-  }))
+  const itemRows: WeeklyCleaningItemInsert[] = draft.items
+    .filter((item) => isUuid(item.taskId))
+    .map((item) => ({
+      weekly_run_id: runRow.id,
+      task_id: item.taskId,
+      is_completed: item.isCompleted,
+      worker_id: isUuid(item.workerId) ? item.workerId : null,
+      completed_at: item.completedAt ?? null,
+    }))
+
+  if (itemRows.length !== draft.items.length) {
+    warn(
+      'Skipped weekly cleaning items with local-only task IDs. Refresh cloud data before completing those tasks.',
+    )
+  }
+
+  if (itemRows.length === 0) {
+    return mapRowsToDraft(runRow, [])
+  }
 
   const { error: itemsError } = await supabase
     .from('weekly_cleaning_items')
@@ -111,12 +124,12 @@ export async function upsertWeeklyCleaningDraftToSupabase(
     return null
   }
 
-  return mapRowsToDraft(runRow, draft.items.map((item) => ({
+  return mapRowsToDraft(runRow, itemRows.map((item) => ({
     id: '',
     weekly_run_id: runRow.id,
-    task_id: item.taskId,
-    is_completed: item.isCompleted,
-    worker_id: item.workerId,
-    completed_at: item.completedAt ?? null,
+    task_id: item.task_id,
+    is_completed: item.is_completed,
+    worker_id: item.worker_id,
+    completed_at: item.completed_at ?? null,
   })))
 }
