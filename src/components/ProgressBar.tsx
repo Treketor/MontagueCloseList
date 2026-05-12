@@ -1,29 +1,35 @@
 type ProgressBarProps = {
   completed: number
+  showText?: boolean
   total: number
 }
 
-function ProgressBar({ completed, total }: ProgressBarProps) {
+function ProgressBar({ completed, showText = true, total }: ProgressBarProps) {
   const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+  const remaining = Math.max(total - completed, 0)
 
   return (
-    <div className="grid gap-3">
-      <div className="flex items-baseline justify-between gap-4">
-        <p className="text-xl font-semibold">
-          {completed} of {total} complete
-        </p>
-        <p className="text-lg text-neutral-400">{percentage}%</p>
-      </div>
+    <div className="grid gap-2">
+      {showText ? (
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-base font-extrabold text-[#1F1D1A]">
+            {completed} / {total} complete
+          </p>
+          <p className="text-sm font-semibold text-[#6F6A63]">
+            {remaining} left
+          </p>
+        </div>
+      ) : null}
       <div
         aria-label={`${completed} of ${total} complete`}
         aria-valuemax={total}
         aria-valuemin={0}
         aria-valuenow={completed}
-        className="h-4 overflow-hidden rounded-sm border border-neutral-700 bg-black"
+        className="h-2.5 overflow-hidden rounded-full bg-[#EFE8DD]"
         role="progressbar"
       >
         <div
-          className="h-full bg-white"
+          className="h-full rounded-full bg-[#1F1D1A]"
           style={{ width: `${percentage}%` }}
         />
       </div>

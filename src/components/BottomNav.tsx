@@ -1,3 +1,11 @@
+import {
+  BrushCleaning,
+  ClipboardCheck,
+  History,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react'
+
 export type NavItem<T extends string = string> = {
   key: T
   label: string
@@ -9,32 +17,41 @@ type BottomNavProps<T extends string> = {
   onSelect: (key: T) => void
 }
 
+const navIcons: Record<string, LucideIcon> = {
+  today: ClipboardCheck,
+  'this-week': History,
+  'weekly-cleaning': BrushCleaning,
+  'manage-tasks': Settings,
+}
+
 function BottomNav<T extends string>({
   activeKey,
   items,
   onSelect,
 }: BottomNavProps<T>) {
   return (
-    <nav className="border-t border-neutral-800 bg-black pb-[max(1rem,var(--safe-area-bottom))] pl-[max(1rem,var(--safe-area-left))] pr-[max(1rem,var(--safe-area-right))] pt-3">
-      <div className="mx-auto grid max-w-5xl grid-cols-4 gap-3">
+    <nav className="bg-[#FFFCF7] px-5 pb-3 pl-[max(1.25rem,var(--safe-area-left))] pr-[max(1.25rem,var(--safe-area-right))] sm:px-6">
+      <div className="mx-auto grid max-w-[1040px] grid-cols-2 gap-2 sm:grid-cols-4">
         {items.map((item) => {
           const isActive = item.key === activeKey
+          const Icon = navIcons[item.key] ?? ClipboardCheck
 
           return (
             <button
               aria-current={isActive ? 'page' : undefined}
               className={[
-                'min-h-16 rounded-md border px-2 text-lg font-semibold transition-colors',
-                'focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black',
+                'flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold leading-none transition-colors sm:text-base',
+                'focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]',
                 isActive
-                  ? 'border-white bg-white text-black'
-                  : 'border-neutral-700 bg-black text-white active:bg-neutral-900',
+                  ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'
+                  : 'border-[#DED8CF] bg-[#FFFCF7] text-[#1F1D1A] active:bg-[#EFE8DD]',
               ].join(' ')}
               key={item.key}
               onClick={() => onSelect(item.key)}
               type="button"
             >
-              {item.label}
+              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
             </button>
           )
         })}

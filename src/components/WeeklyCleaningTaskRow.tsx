@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import type { ChecklistTask } from '../types'
 
 type WeeklyCleaningTaskRowProps = {
@@ -29,8 +30,8 @@ function WeeklyCleaningTaskRow({
     <button
       aria-pressed={isCompleted}
       className={[
-        'flex min-h-24 w-full items-start gap-4 rounded-md border border-neutral-800 p-4 text-left focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black',
-        disabled ? 'cursor-not-allowed opacity-50' : 'active:bg-neutral-900',
+        'flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]',
+        disabled ? 'cursor-not-allowed opacity-55' : 'active:bg-[#EFE8DD]',
       ].join(' ')}
       disabled={disabled}
       onClick={onToggle}
@@ -39,35 +40,35 @@ function WeeklyCleaningTaskRow({
       <span
         aria-hidden="true"
         className={[
-          'mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border text-lg font-semibold',
+          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border',
           isCompleted
-            ? 'border-white bg-white text-black'
-            : 'border-neutral-500 bg-black text-black',
+            ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'
+            : 'border-[#DED8CF] bg-[#FFFCF7] text-transparent',
         ].join(' ')}
       >
-        {isCompleted ? 'X' : ''}
+        {isCompleted ? <Check className="h-4 w-4" /> : null}
       </span>
       <span className="min-w-0">
         <span
           className={[
-            'block text-xl font-semibold leading-tight',
-            isCompleted ? 'text-neutral-300' : 'text-white',
+            'block text-base font-bold leading-tight',
+            isCompleted ? 'text-[#6F6A63]' : 'text-[#1F1D1A]',
           ].join(' ')}
         >
           {task.title}
         </span>
         {task.description ? (
-          <span className="mt-2 block text-lg leading-relaxed text-neutral-300">
+          <span className="mt-1 block text-sm leading-relaxed text-[#6F6A63]">
             {task.description}
           </span>
         ) : null}
-        <span className="mt-3 block text-lg font-semibold text-neutral-300">
+        <span className="mt-1.5 block text-sm font-semibold text-[#6F6A63]">
           {isCompleted && completedByName
             ? `Completed by ${completedByName}`
             : 'Not completed'}
         </span>
         {isCompleted && completedAt ? (
-          <span className="mt-1 block text-base text-neutral-500">
+          <span className="mt-1 block text-sm font-semibold text-[#6F6A63]">
             {formatCompletedTime(completedAt)}
           </span>
         ) : null}

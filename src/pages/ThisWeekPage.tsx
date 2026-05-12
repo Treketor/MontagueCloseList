@@ -4,7 +4,6 @@ import ChecklistSummaryCard from '../components/ChecklistSummaryCard'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import PrimaryButton from '../components/PrimaryButton'
-import SectionCard from '../components/SectionCard'
 import StatusMessage from '../components/StatusMessage'
 import {
   getDailyChecklistCompletionStats,
@@ -90,46 +89,43 @@ function ThisWeekPage({
   }, [loadHistory])
 
   return (
-    <div className="grid gap-6">
-      <PageHeader title="This Week" description={readableWeekRange} />
-      <SectionCard>
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <div>
-            {isLoading ? (
-              <StatusMessage>Loading history...</StatusMessage>
-            ) : null}
-            {warning ? (
-              <StatusMessage tone="warning">{warning}</StatusMessage>
-            ) : null}
-          </div>
-          <PrimaryButton className="shrink-0" onClick={() => void loadHistory()}>
-            Refresh
-          </PrimaryButton>
+    <div className="grid gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader title="Previous closes" description={readableWeekRange} />
+        <PrimaryButton className="mt-1 shrink-0" onClick={() => void loadHistory()}>
+          Refresh
+        </PrimaryButton>
+      </div>
+
+      {isLoading ? (
+        <StatusMessage>Loading history...</StatusMessage>
+      ) : null}
+      {warning ? (
+        <StatusMessage tone="warning">{warning}</StatusMessage>
+      ) : null}
+
+      {checklists.length === 0 ? (
+        <EmptyState message="No closing checklists saved for this week." />
+      ) : (
+        <div className="grid gap-3">
+          {checklists.map((checklist) => {
+            const stats = getDailyChecklistCompletionStats(checklist)
+            const workerName = getWorkerName(workers, checklist.workerId)
+
+            return (
+              <ChecklistSummaryCard
+                checklist={checklist}
+                completed={stats.completed}
+                isSubmitted={Boolean(checklist.submittedAt)}
+                key={checklist.barDate}
+                onOpen={() => setSelectedChecklist(checklist)}
+                total={stats.total}
+                workerName={workerName}
+              />
+            )
+          })}
         </div>
-
-        {checklists.length === 0 ? (
-          <EmptyState message="No closing checklists saved for this week." />
-        ) : (
-          <div className="grid gap-4">
-            {checklists.map((checklist) => {
-              const stats = getDailyChecklistCompletionStats(checklist)
-              const workerName = getWorkerName(workers, checklist.workerId)
-
-              return (
-                <ChecklistSummaryCard
-                  checklist={checklist}
-                  completed={stats.completed}
-                  isSubmitted={Boolean(checklist.submittedAt)}
-                  key={checklist.barDate}
-                  onOpen={() => setSelectedChecklist(checklist)}
-                  total={stats.total}
-                  workerName={workerName}
-                />
-              )
-            })}
-          </div>
-        )}
-      </SectionCard>
+      )}
 
       <ChecklistDetailModal
         checklist={selectedChecklist}

@@ -6,9 +6,9 @@ function PrimaryButton({ className = '', type = 'button', ...props }: PrimaryBut
   return (
     <button
       className={[
-        'min-h-14 rounded-md border border-white bg-white px-6 text-lg font-semibold text-black',
-        'active:bg-neutral-200 disabled:cursor-not-allowed disabled:border-neutral-700 disabled:bg-neutral-900 disabled:text-neutral-500',
-        'focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black',
+        'min-h-12 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7]',
+        'active:bg-[#3A352F] disabled:cursor-not-allowed disabled:border-[#DED8CF] disabled:bg-[#EFE8DD] disabled:text-[#6F6A63]',
+        'focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]',
         className,
       ].join(' ')}
       type={type}

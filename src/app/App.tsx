@@ -32,7 +32,7 @@ const selectedWorkerStorageKey = 'closelist_selected_worker_id'
 
 const navItems: NavItem<ScreenKey>[] = [
   { key: 'today', label: 'Today' },
-  { key: 'this-week', label: 'This Week' },
+  { key: 'this-week', label: 'History' },
   { key: 'weekly-cleaning', label: 'Cleaning' },
   { key: 'manage-tasks', label: 'Manage' },
 ]
@@ -118,6 +118,7 @@ function App() {
   const startupWorkers = useRef(workers)
   const [isInitialSyncing, setIsInitialSyncing] = useState(isSupabaseConfigured)
   const [hasCloudIssue, setHasCloudIssue] = useState(false)
+  const [headerSyncDetail, setHeaderSyncDetail] = useState('')
   const [setupDataStatus, setSetupDataStatus] = useState('')
   const [selectedWorkerId, setSelectedWorkerId] = useState(
     () => getStorageItem(selectedWorkerStorageKey) ?? '',
@@ -136,6 +137,12 @@ function App() {
     () => getActiveTasksByType(tasks, 'weekly_cleaning'),
     [tasks],
   )
+
+  useEffect(() => {
+    if (activeScreen !== 'today' && activeScreen !== 'weekly-cleaning') {
+      setHeaderSyncDetail('')
+    }
+  }, [activeScreen])
 
   useEffect(() => {
     setStorageItem(workersStorageKey, JSON.stringify(workers))
@@ -311,8 +318,8 @@ function App() {
         dailyClosingTasks={dailyClosingTasks}
         isCloudSyncEnabled={isSupabaseConfigured}
         onCreateWorker={handleCreateWorker}
+        onHeaderStatusChange={setHeaderSyncDetail}
         onSelectWorker={handleSelectWorker}
-        readableBarDate={readableBarDate}
         selectedWorkerId={activeWorkerId}
         workers={workers}
       />
@@ -328,6 +335,7 @@ function App() {
       <WeeklyCleaningPage
         isCloudSyncEnabled={isSupabaseConfigured}
         onCreateWorker={handleCreateWorker}
+        onHeaderStatusChange={setHeaderSyncDetail}
         onSelectWorker={handleSelectWorker}
         selectedWorkerId={activeWorkerId}
         weeklyCleaningTasks={weeklyCleaningTasks}
@@ -348,6 +356,7 @@ function App() {
     <AppShell
       activeScreen={activeScreen}
       barDate={readableBarDate}
+      syncDetail={headerSyncDetail}
       syncStatus={isInitialSyncing ? 'syncing' : hasCloudIssue ? 'issue' : 'ready'}
       navItems={navItems}
       onNavigate={setActiveScreen}

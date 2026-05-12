@@ -6,6 +6,7 @@ type AppShellProps<T extends string> = {
   activeScreen: T
   barDate: string
   children: ReactNode
+  syncDetail?: string
   syncStatus?: 'ready' | 'syncing' | 'issue'
   navItems: NavItem<T>[]
   onNavigate: (screen: T) => void
@@ -15,40 +16,42 @@ function AppShell<T extends string>({
   activeScreen,
   barDate,
   children,
+  syncDetail,
   syncStatus = 'ready',
   navItems,
   onNavigate,
 }: AppShellProps<T>) {
   return (
-    <div className="flex min-h-dvh flex-col bg-black text-white">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-neutral-800 bg-black pt-[var(--safe-area-top)]">
-        <div className="mx-auto flex min-h-20 max-w-5xl items-center justify-between gap-6 px-6 py-4 pl-[max(1.5rem,var(--safe-area-left))] pr-[max(1.5rem,var(--safe-area-right))] sm:px-8">
+    <div className="flex min-h-dvh flex-col bg-[#F7F4EF] text-[#1F1D1A]">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-[#DED8CF] bg-[#FFFCF7] pt-[var(--safe-area-top)]">
+        <div className="mx-auto flex min-h-16 max-w-[1040px] items-center justify-between gap-4 px-5 py-3 pl-[max(1.25rem,var(--safe-area-left))] pr-[max(1.25rem,var(--safe-area-right))] sm:px-6">
           <div>
-            <h1 className="text-3xl font-semibold leading-none tracking-normal">
+            <p className="text-xl font-extrabold leading-none tracking-normal">
               CloseList
-            </h1>
-            <SyncStatus status={syncStatus} />
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[#6F6A63]">
+              {barDate}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium uppercase tracking-normal text-neutral-400">
-              Bar Date
-            </p>
-            <p className="mt-1 text-xl font-semibold leading-tight">{barDate}</p>
+            <SyncStatus status={syncStatus} />
+            {syncDetail ? (
+              <p className="mt-1 text-xs font-semibold text-[#6F6A63]">
+                {syncDetail}
+              </p>
+            ) : null}
           </div>
         </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-6 pb-10 pl-[max(1.5rem,var(--safe-area-left))] pr-[max(1.5rem,var(--safe-area-right))] sm:px-8">
-        {children}
-      </main>
-
-      <footer className="sticky bottom-0 z-20 shrink-0">
         <BottomNav
           activeKey={activeScreen}
           items={navItems}
           onSelect={onNavigate}
         />
-      </footer>
+      </header>
+
+      <main className="mx-auto w-full max-w-[1040px] flex-1 px-5 py-4 pb-8 pl-[max(1.25rem,var(--safe-area-left))] pr-[max(1.25rem,var(--safe-area-right))] sm:px-6">
+        {children}
+      </main>
     </div>
   )
 }

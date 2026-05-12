@@ -38,6 +38,14 @@ const emptyForm: TaskFormState = {
   section: 'Bar',
   title: '',
 }
+const inputClass =
+  'min-h-12 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-4 text-lg text-[#1F1D1A] placeholder:text-[#6F6A63] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
+const textareaClass =
+  'min-h-28 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-4 text-lg font-normal leading-relaxed text-[#1F1D1A] placeholder:text-[#6F6A63] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
+const secondaryButtonClass =
+  'min-h-12 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-5 text-base font-bold text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
+const darkButtonClass =
+  'min-h-12 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-5 text-base font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
 
 function createTaskId(taskType: TaskType, title: string) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -290,10 +298,10 @@ function ManageTasksPage({
         <PageHeader title="Manage Tasks" description="Task editing is manager-only." />
         <SectionCard>
           <form className="grid gap-4" onSubmit={handleUnlock}>
-            <label className="grid gap-2 text-xl font-semibold">
+            <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
               Manager code
               <input
-                className="min-h-14 rounded-md border border-neutral-700 bg-black px-4 text-xl text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                className={inputClass}
                 inputMode="numeric"
                 disabled={isVerifyingCode}
                 onChange={(event) => setCode(event.target.value)}
@@ -324,10 +332,10 @@ function ManageTasksPage({
           return (
             <button
               className={[
-                'min-h-14 rounded-md border px-4 text-xl font-semibold focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black',
+                'min-h-12 rounded-xl border px-4 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]',
                 isSelected
-                  ? 'border-white bg-white text-black'
-                  : 'border-neutral-700 bg-black text-white active:bg-neutral-900',
+                  ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'
+                  : 'border-[#DED8CF] bg-[#FFFCF7] text-[#1F1D1A] active:bg-[#EFE8DD]',
               ].join(' ')}
               key={taskType.value}
               onClick={() => {
@@ -346,10 +354,10 @@ function ManageTasksPage({
 
       <SectionCard title="Add Task">
         <form className="grid gap-4" onSubmit={handleAddTask}>
-          <label className="grid gap-2 text-xl font-semibold">
+          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
             Title
             <input
-              className="min-h-14 rounded-md border border-neutral-700 bg-black px-4 text-xl text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className={inputClass}
               onChange={(event) =>
                 setAddForm((currentForm) => ({
                   ...currentForm,
@@ -359,10 +367,10 @@ function ManageTasksPage({
               value={addForm.title}
             />
           </label>
-          <label className="grid gap-2 text-xl font-semibold">
+          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
             Description
             <textarea
-              className="min-h-28 rounded-md border border-neutral-700 bg-black p-4 text-xl font-normal leading-relaxed text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className={textareaClass}
               onChange={(event) =>
                 setAddForm((currentForm) => ({
                   ...currentForm,
@@ -372,10 +380,10 @@ function ManageTasksPage({
               value={addForm.description}
             />
           </label>
-          <label className="grid gap-2 text-xl font-semibold">
+          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
             Section
             <select
-              className="min-h-14 rounded-md border border-neutral-700 bg-black px-4 text-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className={inputClass}
               onChange={(event) =>
                 setAddForm((currentForm) => ({
                   ...currentForm,
@@ -406,22 +414,22 @@ function ManageTasksPage({
 
           {groupedTasks.map((group) => (
             <section key={group.section}>
-              <h3 className="mb-3 text-2xl font-semibold">{group.section}</h3>
+              <h3 className="mb-3 text-xl font-extrabold text-[#1F1D1A]">{group.section}</h3>
               <ul className="grid gap-3">
                 {group.tasks.map((task) => {
                   const isEditing = editingTaskId === task.id
 
                   return (
                     <li
-                      className="rounded-md border border-neutral-800 p-4"
+                      className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4"
                       key={task.id}
                     >
                       {isEditing ? (
                         <div className="grid gap-4">
-                          <label className="grid gap-2 text-lg font-semibold">
+                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
                             Title
                             <input
-                              className="min-h-14 rounded-md border border-neutral-700 bg-black px-4 text-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                              className={inputClass}
                               onChange={(event) =>
                                 setEditForm((currentForm) => ({
                                   ...currentForm,
@@ -431,10 +439,10 @@ function ManageTasksPage({
                               value={editForm.title}
                             />
                           </label>
-                          <label className="grid gap-2 text-lg font-semibold">
+                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
                             Description
                             <textarea
-                              className="min-h-28 rounded-md border border-neutral-700 bg-black p-4 text-xl font-normal leading-relaxed text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                              className={textareaClass}
                               onChange={(event) =>
                                 setEditForm((currentForm) => ({
                                   ...currentForm,
@@ -444,10 +452,10 @@ function ManageTasksPage({
                               value={editForm.description}
                             />
                           </label>
-                          <label className="grid gap-2 text-lg font-semibold">
+                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
                             Section
                             <select
-                              className="min-h-14 rounded-md border border-neutral-700 bg-black px-4 text-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                              className={inputClass}
                               onChange={(event) =>
                                 setEditForm((currentForm) => ({
                                   ...currentForm,
@@ -471,7 +479,7 @@ function ManageTasksPage({
                               Save
                             </PrimaryButton>
                             <button
-                              className="min-h-14 rounded-md border border-neutral-700 px-6 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                              className={secondaryButtonClass}
                               onClick={cancelEditing}
                               type="button"
                             >
@@ -485,23 +493,23 @@ function ManageTasksPage({
                             <p
                               className={[
                                 'text-xl font-semibold leading-tight',
-                                task.isActive ? 'text-white' : 'text-neutral-500',
+                                task.isActive ? 'text-[#1F1D1A]' : 'text-[#6F6A63]',
                               ].join(' ')}
                             >
                               {task.title}
                             </p>
                             {task.description ? (
-                              <p className="mt-2 text-lg leading-relaxed text-neutral-300">
+                              <p className="mt-2 text-base leading-relaxed text-[#6F6A63]">
                                 {task.description}
                               </p>
                             ) : null}
-                            <p className="mt-3 text-lg font-semibold text-neutral-400">
+                            <p className="mt-3 text-base font-bold text-[#6F6A63]">
                               {task.section} - {task.isActive ? 'Active' : 'Inactive'}
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-3">
                             <button
-                              className="min-h-14 rounded-md border border-neutral-700 px-6 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                              className={secondaryButtonClass}
                               onClick={() => startEditing(task)}
                               type="button"
                             >
@@ -509,19 +517,19 @@ function ManageTasksPage({
                             </button>
                             {task.isActive ? (
                               confirmingDisableTaskId === task.id ? (
-                                <div className="grid gap-3 rounded-md border border-neutral-700 p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                                  <p className="text-lg font-semibold text-white">
+                                <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                                  <p className="text-lg font-bold text-[#1F1D1A]">
                                     Disable this task?
                                   </p>
                                   <button
-                                    className="min-h-12 rounded-md border border-neutral-700 px-5 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                                    className={secondaryButtonClass}
                                     onClick={() => setConfirmingDisableTaskId(null)}
                                     type="button"
                                   >
                                     Cancel
                                   </button>
                                   <button
-                                    className="min-h-12 rounded-md border border-white bg-white px-5 text-lg font-semibold text-black active:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                                    className={darkButtonClass}
                                     onClick={() => setTaskActive(task.id, false)}
                                     type="button"
                                   >
@@ -530,7 +538,7 @@ function ManageTasksPage({
                                 </div>
                               ) : (
                                 <button
-                                  className="min-h-14 rounded-md border border-neutral-700 px-6 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                                  className={secondaryButtonClass}
                                   onClick={() => {
                                     setTaskError('')
                                     setConfirmingDisableTaskId(task.id)
@@ -542,7 +550,7 @@ function ManageTasksPage({
                               )
                             ) : (
                               <button
-                                className="min-h-14 rounded-md border border-white bg-white px-6 text-lg font-semibold text-black active:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                                className={darkButtonClass}
                                 onClick={() => setTaskActive(task.id, true)}
                                 type="button"
                               >
@@ -563,39 +571,39 @@ function ManageTasksPage({
 
       <SectionCard title="Diagnostics">
         <div className="grid gap-4">
-          <dl className="grid gap-3 text-lg">
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">App version</dt>
+          <dl className="grid gap-3 text-base">
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">App version</dt>
               <dd className="font-semibold">{diagnostics.appVersion}</dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Environment</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Environment</dt>
               <dd className="font-semibold">{diagnostics.environment}</dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Cloud sync ready</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Cloud sync ready</dt>
               <dd className="font-semibold">
                 {diagnostics.supabaseConfigured ? 'yes' : 'no'}
               </dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Local workers cache</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Local workers cache</dt>
               <dd className="font-semibold">
                 {diagnostics.hasLocalWorkers ? 'yes' : 'no'}
               </dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Local tasks cache</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Local tasks cache</dt>
               <dd className="font-semibold">
                 {diagnostics.hasLocalTasks ? 'yes' : 'no'}
               </dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Daily checklist cache</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Daily checklist cache</dt>
               <dd className="font-semibold">{diagnostics.localDailyChecklistKeys}</dd>
             </div>
-            <div className="flex justify-between gap-4 border-b border-neutral-800 pb-2">
-              <dt className="text-neutral-400">Weekly cleaning cache</dt>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Weekly cleaning cache</dt>
               <dd className="font-semibold">{diagnostics.localWeeklyCleaningKeys}</dd>
             </div>
           </dl>
@@ -619,7 +627,7 @@ function ManageTasksPage({
               Refresh cloud data
             </PrimaryButton>
             <button
-              className="min-h-14 rounded-md border border-neutral-700 px-6 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className={secondaryButtonClass}
               onClick={() => void handleCopyDiagnostics()}
               type="button"
             >
@@ -628,19 +636,19 @@ function ManageTasksPage({
           </div>
 
           {isConfirmingCacheClear ? (
-            <div className="grid gap-3 rounded-md border border-neutral-700 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-              <p className="text-lg font-semibold text-white">
+            <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+              <p className="text-lg font-bold text-[#1F1D1A]">
                 Clear CloseList local cache on this device?
               </p>
               <button
-                className="min-h-12 rounded-md border border-neutral-700 px-5 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                className={secondaryButtonClass}
                 onClick={() => setIsConfirmingCacheClear(false)}
                 type="button"
               >
                 Cancel
               </button>
               <button
-                className="min-h-12 rounded-md border border-white bg-white px-5 text-lg font-semibold text-black active:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+                className={darkButtonClass}
                 onClick={clearLocalCache}
                 type="button"
               >
@@ -649,7 +657,7 @@ function ManageTasksPage({
             </div>
           ) : (
             <button
-              className="min-h-14 rounded-md border border-neutral-700 px-6 text-lg font-semibold text-white active:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className={secondaryButtonClass}
               onClick={() => setIsConfirmingCacheClear(true)}
               type="button"
             >

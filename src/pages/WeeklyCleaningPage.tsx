@@ -28,6 +28,7 @@ import type {
 type WeeklyCleaningPageProps = {
   isCloudSyncEnabled: boolean
   onCreateWorker: (name: string) => Promise<Worker | null> | Worker | null
+  onHeaderStatusChange: (status: string) => void
   onSelectWorker: (workerId: string | null) => void
   selectedWorkerId: string
   weeklyCleaningTasks: ChecklistTask[]
@@ -83,6 +84,7 @@ function getUpdatedTime(updatedAt: string) {
 function WeeklyCleaningPage({
   isCloudSyncEnabled,
   onCreateWorker,
+  onHeaderStatusChange,
   onSelectWorker,
   selectedWorkerId,
   weeklyCleaningTasks,
@@ -109,6 +111,14 @@ function WeeklyCleaningPage({
   const readableWeekRange = `${formatReadableDate(
     weekRange.startDate,
   )} - ${formatReadableDate(weekRange.endDate)}`
+
+  useEffect(() => {
+    onHeaderStatusChange(
+      `${syncStatus} · Last updated ${getUpdatedTime(draft.updatedAt)}`,
+    )
+
+    return () => onHeaderStatusChange('')
+  }, [draft.updatedAt, onHeaderStatusChange, syncStatus])
 
   async function loadDraft() {
     const revisionAtLoadStart = draftRevision.current
@@ -309,8 +319,13 @@ function WeeklyCleaningPage({
   }
 
   return (
-    <div className="grid gap-6">
-      <PageHeader title="Weekly Cleaning" description={readableWeekRange} />
+    <div className="grid gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader title="Weekly Cleaning" description={readableWeekRange} />
+        <PrimaryButton className="mt-1 shrink-0" onClick={() => void loadDraft()}>
+          Refresh
+        </PrimaryButton>
+      </div>
 
       <WorkerSelector
         onCreateWorker={onCreateWorker}
@@ -319,50 +334,45 @@ function WeeklyCleaningPage({
         workers={workers}
       />
 
-      <SectionCard title="Weekly Cleaning Checklist">
-        <div className="mb-5 border-b border-neutral-800 pb-5">
-          <p className="text-sm font-medium uppercase tracking-normal text-neutral-400">
-            Week Start
-          </p>
-          <p className="mt-1 text-2xl font-semibold leading-tight">
-            {formatReadableDate(draft.weekStartDate)}
-          </p>
-          <p className="mt-2 text-lg text-neutral-400">{draft.weekStartDate}</p>
-        </div>
-
-        <div className="grid gap-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              {isLoadingDraft ? (
-                <StatusMessage>Loading weekly cleaning...</StatusMessage>
-              ) : null}
-              <p className="text-lg font-medium text-neutral-500">
-                {syncStatus} · Last updated {getUpdatedTime(draft.updatedAt)}
-              </p>
-            </div>
-            <PrimaryButton className="shrink-0" onClick={() => void loadDraft()}>
-              Refresh
-            </PrimaryButton>
+      <SectionCard>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <h2 className="text-xl font-extrabold text-[#1F1D1A]">
+              Cleaning progress
+            </h2>
+            <ProgressBar completed={stats.completed} total={stats.total} />
           </div>
 
+          {isLoadingDraft ? (
+            <StatusMessage>Loading weekly cleaning...</StatusMessage>
+          ) : null}
+
           {!selectedWorkerId ? (
-            <StatusMessage>
+            <StatusMessage tone="warning">
               Select who is completing cleaning tasks before checking items.
             </StatusMessage>
           ) : null}
-
-          <ProgressBar completed={stats.completed} total={stats.total} />
 
           {warning ? (
             <StatusMessage tone="warning">{warning}</StatusMessage>
           ) : null}
 
-          {taskGroups.map((group) => (
-            <section key={group.section}>
-              <h3 className="mb-3 text-2xl font-semibold leading-tight">
-                {group.section}
-              </h3>
-              <ul className="grid gap-3">
+          {taskGroups.map((group) => {
+            const sectionCompleted = group.tasks.filter(
+              (task) => getItemState(draft, task.id)?.isCompleted,
+            ).length
+
+            return (
+              <section key={group.section}>
+                <div className="mb-0.5 flex items-baseline justify-between gap-4">
+                  <h3 className="text-lg font-extrabold leading-tight text-[#1F1D1A]">
+                    {group.section}
+                  </h3>
+                  <p className="text-sm font-bold text-[#6F6A63]">
+                    {sectionCompleted}/{group.tasks.length}
+                  </p>
+                </div>
+                <ul>
                 {group.tasks.map((task) => {
                   const itemState = getItemState(draft, task.id)
                   const completedByName = itemState?.workerId
@@ -382,9 +392,10 @@ function WeeklyCleaningPage({
                     </li>
                   )
                 })}
-              </ul>
-            </section>
-          ))}
+                </ul>
+              </section>
+            )
+          })}
         </div>
       </SectionCard>
     </div>

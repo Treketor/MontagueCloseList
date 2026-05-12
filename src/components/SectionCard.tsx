@@ -7,9 +7,9 @@ type SectionCardProps = {
 
 function SectionCard({ children, title }: SectionCardProps) {
   return (
-    <section className="rounded-md border border-neutral-800 bg-black p-5">
+    <section className="rounded-2xl border border-[#DED8CF] bg-[#FFFCF7] p-4 shadow-[0_1px_2px_rgba(31,29,26,0.04)] sm:p-5">
       {title ? (
-        <h3 className="mb-4 text-2xl font-semibold leading-tight tracking-normal">
+        <h3 className="mb-3 text-xl font-extrabold leading-tight tracking-normal text-[#1F1D1A]">
           {title}
         </h3>
       ) : null}
