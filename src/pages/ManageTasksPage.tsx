@@ -13,14 +13,18 @@ import StatusMessage from '../components/StatusMessage'
 import { getDiagnostics } from '../lib/diagnostics'
 import { verifyManagerCodeStatus } from '../lib/managerAccess'
 import { getAllTasksByType } from '../lib/taskStorage'
-import type { ChecklistTask, TaskSection, TaskType } from '../types'
+import type { ChecklistTask, TaskSection, TaskType, Worker } from '../types'
 
 type ManageTasksPageProps = {
+  onCreateWorker: (name: string) => Promise<Worker | null> | Worker | null
   onDeleteTask: (taskId: string) => Promise<void> | void
+  onDeleteWorker: (workerId: string) => Promise<boolean> | boolean
   onRefreshCloudData: () => Promise<void> | void
   onSaveTasks: (tasks: ChecklistTask[]) => Promise<void> | void
+  onSaveWorker: (worker: Worker) => Promise<boolean> | boolean
   setupDataStatus: string
   tasks: ChecklistTask[]
+  workers: Worker[]
 }
 
 type TaskFormState = {
@@ -98,10 +102,14 @@ function getGroupedTasks(tasks: ChecklistTask[]) {
 
 function ManageTasksPage({
   onDeleteTask,
+  onDeleteWorker,
+  onCreateWorker,
   onRefreshCloudData,
   onSaveTasks,
+  onSaveWorker,
   setupDataStatus,
   tasks,
+  workers,
 }: ManageTasksPageProps) {
   const [code, setCode] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -115,6 +123,11 @@ function ManageTasksPage({
   const [editForm, setEditForm] = useState<TaskFormState>(emptyForm)
   const [editError, setEditError] = useState('')
   const [taskError, setTaskError] = useState('')
+  const [workerName, setWorkerName] = useState('')
+  const [workerError, setWorkerError] = useState('')
+  const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null)
+  const [editingWorkerName, setEditingWorkerName] = useState('')
+  const [confirmingDeleteWorkerId, setConfirmingDeleteWorkerId] = useState<string | null>(null)
   const [confirmingDeleteTaskId, setConfirmingDeleteTaskId] = useState<string | null>(null)
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false)
   const [isConfirmingCacheClear, setIsConfirmingCacheClear] = useState(false)
@@ -303,6 +316,85 @@ function ManageTasksPage({
     void onDeleteTask(taskId)
   }
 
+  function hasDuplicateWorkerName(name: string, ignoredWorkerId?: string) {
+    const normalizedName = name.trim().toLowerCase()
+
+    return workers.some(
+      (worker) =>
+        worker.id !== ignoredWorkerId &&
+        worker.name.trim().toLowerCase() === normalizedName,
+    )
+  }
+
+  async function addWorker(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedName = workerName.trim()
+
+    if (!trimmedName) {
+      setWorkerError('Worker name is required.')
+      return
+    }
+
+    if (hasDuplicateWorkerName(trimmedName)) {
+      setWorkerError('A worker with this name already exists.')
+      return
+    }
+
+    const createdWorker = await onCreateWorker(trimmedName)
+
+    if (!createdWorker) {
+      setWorkerError('Could not add worker.')
+      return
+    }
+
+    setWorkerName('')
+    setWorkerError('')
+  }
+
+  function startEditingWorker(worker: Worker) {
+    setWorkerError('')
+    setConfirmingDeleteWorkerId(null)
+    setEditingWorkerId(worker.id)
+    setEditingWorkerName(worker.name)
+  }
+
+  async function saveWorkerEdit(worker: Worker) {
+    const trimmedName = editingWorkerName.trim()
+
+    if (!trimmedName) {
+      setWorkerError('Worker name is required.')
+      return
+    }
+
+    if (hasDuplicateWorkerName(trimmedName, worker.id)) {
+      setWorkerError('A worker with this name already exists.')
+      return
+    }
+
+    const didSave = await onSaveWorker({ ...worker, name: trimmedName })
+
+    if (!didSave) {
+      setWorkerError('Could not save worker.')
+      return
+    }
+
+    setEditingWorkerId(null)
+    setEditingWorkerName('')
+    setWorkerError('')
+  }
+
+  async function deleteWorker(workerId: string) {
+    const didDelete = await onDeleteWorker(workerId)
+
+    if (!didDelete) {
+      setWorkerError('Could not remove worker.')
+      return
+    }
+
+    setConfirmingDeleteWorkerId(null)
+    setWorkerError('')
+  }
+
   function getDiagnosticsText() {
     return [
       `App version: ${diagnostics.appVersion}`,
@@ -455,6 +547,128 @@ function ManageTasksPage({
           )
         })}
       </div>
+
+      <SectionCard title="Workers">
+        <div className="grid gap-5">
+          <form className="grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={addWorker}>
+            <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
+              Add worker
+              <input
+                className={inputClass}
+                onChange={(event) => setWorkerName(event.target.value)}
+                placeholder="Worker name"
+                value={workerName}
+              />
+            </label>
+            <div className="flex items-end">
+              <PrimaryButton type="submit">Add Worker</PrimaryButton>
+            </div>
+          </form>
+
+          {workerError ? (
+            <StatusMessage tone="warning">{workerError}</StatusMessage>
+          ) : null}
+
+          <ul className="grid gap-3">
+            {workers.length === 0 ? (
+              <li className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-base font-semibold text-[#6F6A63]">
+                No workers yet.
+              </li>
+            ) : null}
+
+            {workers.map((worker) => {
+              const isEditingWorker = editingWorkerId === worker.id
+              const isConfirmingDelete = confirmingDeleteWorkerId === worker.id
+
+              return (
+                <li
+                  className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4"
+                  key={worker.id}
+                >
+                  {isEditingWorker ? (
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                      <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
+                        Worker name
+                        <input
+                          className={inputClass}
+                          onChange={(event) =>
+                            setEditingWorkerName(event.target.value)
+                          }
+                          value={editingWorkerName}
+                        />
+                      </label>
+                      <button
+                        className={darkButtonClass}
+                        onClick={() => void saveWorkerEdit(worker)}
+                        type="button"
+                      >
+                        Save
+                      </button>
+                      <button
+                        className={secondaryButtonClass}
+                        onClick={() => {
+                          setEditingWorkerId(null)
+                          setEditingWorkerName('')
+                          setWorkerError('')
+                        }}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                      <p className="text-xl font-semibold text-[#1F1D1A]">
+                        {worker.name}
+                      </p>
+                      <button
+                        className={secondaryButtonClass}
+                        onClick={() => startEditingWorker(worker)}
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                      {isConfirmingDelete ? (
+                        <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                          <p className="text-lg font-bold text-[#1F1D1A]">
+                            Remove this worker?
+                          </p>
+                          <button
+                            className={secondaryButtonClass}
+                            onClick={() => setConfirmingDeleteWorkerId(null)}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className={darkButtonClass}
+                            onClick={() => void deleteWorker(worker.id)}
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className={secondaryButtonClass}
+                          onClick={() => {
+                            setWorkerError('')
+                            setEditingWorkerId(null)
+                            setConfirmingDeleteWorkerId(worker.id)
+                          }}
+                          type="button"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </SectionCard>
 
       <SectionCard title="Add Task">
         <form className="grid gap-4" onSubmit={handleAddTask}>

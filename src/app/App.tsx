@@ -21,8 +21,10 @@ import {
 } from '../lib/supabaseTasks'
 import {
   createWorkerInSupabase,
+  deleteWorkerFromSupabase,
   fetchWorkersFromSupabase,
   syncWorkersToSupabase,
+  updateWorkerInSupabase,
 } from '../lib/supabaseWorkers'
 import type { ChecklistTask, Worker } from '../types'
 
@@ -252,6 +254,79 @@ function App() {
     setSelectedWorkerId(workerId ?? '')
   }
 
+  async function handleSaveWorker(worker: Worker): Promise<boolean> {
+    const trimmedName = worker.name.trim()
+
+    if (!trimmedName) {
+      return false
+    }
+
+    const hasDuplicate = workers.some(
+      (existingWorker) =>
+        existingWorker.id !== worker.id &&
+        existingWorker.name.toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    if (hasDuplicate) {
+      return false
+    }
+
+    const nextWorkers = mergeWorkers(
+      workers.filter((existingWorker) => existingWorker.id !== worker.id),
+      [{ ...worker, name: trimmedName }],
+    )
+
+    setWorkers(nextWorkers)
+    setStorageItem(workersStorageKey, JSON.stringify(nextWorkers))
+
+    if (!isSupabaseConfigured) {
+      return true
+    }
+
+    const savedWorker = await updateWorkerInSupabase({ ...worker, name: trimmedName })
+
+    if (!savedWorker) {
+      setHasCloudIssue(true)
+      return false
+    }
+
+    const cloudWorkers = await fetchWorkersFromSupabase()
+    const syncedWorkers = cloudWorkers.length > 0 ? cloudWorkers : nextWorkers
+    setWorkers(syncedWorkers)
+    setStorageItem(workersStorageKey, JSON.stringify(syncedWorkers))
+
+    return true
+  }
+
+  async function handleDeleteWorker(workerId: string): Promise<boolean> {
+    const workerToDelete = workers.find((worker) => worker.id === workerId)
+    const nextWorkers = workers.filter((worker) => worker.id !== workerId)
+
+    setWorkers(nextWorkers)
+    setStorageItem(workersStorageKey, JSON.stringify(nextWorkers))
+
+    if (selectedWorkerId === workerId) {
+      setSelectedWorkerId('')
+    }
+
+    if (!isSupabaseConfigured || !workerToDelete) {
+      return true
+    }
+
+    const didDelete = await deleteWorkerFromSupabase(workerToDelete)
+
+    if (!didDelete) {
+      setHasCloudIssue(true)
+      return false
+    }
+
+    const cloudWorkers = await fetchWorkersFromSupabase()
+    setWorkers(cloudWorkers)
+    setStorageItem(workersStorageKey, JSON.stringify(cloudWorkers))
+
+    return true
+  }
+
   async function handleSaveTasks(nextTasks: ChecklistTask[]) {
     saveTasks(nextTasks)
     setTasks(nextTasks)
@@ -371,11 +446,15 @@ function App() {
     ),
     'manage-tasks': (
       <ManageTasksPage
+        onCreateWorker={handleCreateWorker}
         onDeleteTask={handleDeleteTask}
+        onDeleteWorker={handleDeleteWorker}
         onRefreshCloudData={refreshCloudSetupData}
         onSaveTasks={handleSaveTasks}
+        onSaveWorker={handleSaveWorker}
         setupDataStatus={setupDataStatus}
         tasks={tasks}
+        workers={workers}
       />
     ),
   }[activeScreen]
