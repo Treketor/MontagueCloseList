@@ -1,4 +1,8 @@
-import { isSupabaseConfigured } from '../lib/supabase'
+import {
+  isSupabaseConfigured,
+  supabaseConfigMessage,
+  supabaseConfigStatus,
+} from '../lib/supabase'
 import { CloudCheck, CloudOff, HardDrive, LoaderCircle } from 'lucide-react'
 
 type SyncStatusProps = {
@@ -11,15 +15,17 @@ function SyncStatus({ status = 'ready' }: SyncStatusProps) {
     ? 'Syncing...'
     : status === 'issue'
       ? 'Cloud issue'
-      : isLocalOnly
-        ? 'Local only'
+    : isLocalOnly
+        ? supabaseConfigMessage
         : 'Cloud sync ready'
   const dotClass = status === 'syncing'
     ? 'bg-[#B8A56E]'
     : status === 'issue'
       ? 'bg-[#7D6556]'
-      : isLocalOnly
-        ? 'bg-[#6F6A63]'
+    : isLocalOnly
+        ? supabaseConfigStatus === 'secret_key'
+          ? 'bg-[#8A4D3D]'
+          : 'bg-[#6F6A63]'
         : 'bg-[#5E6B58]'
   const Icon = status === 'syncing'
     ? LoaderCircle

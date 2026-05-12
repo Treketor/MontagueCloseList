@@ -400,6 +400,7 @@ function ManageTasksPage({
       `App version: ${diagnostics.appVersion}`,
       `Environment: ${diagnostics.environment}`,
       `Cloud sync ready: ${diagnostics.supabaseConfigured ? 'yes' : 'no'}`,
+      `Supabase config status: ${diagnostics.supabaseConfigStatus}`,
       `Local workers cache: ${diagnostics.hasLocalWorkers ? 'yes' : 'no'}`,
       `Local tasks cache: ${diagnostics.hasLocalTasks ? 'yes' : 'no'}`,
       `Local daily checklist cache count: ${diagnostics.localDailyChecklistKeys}`,
@@ -893,6 +894,10 @@ function ManageTasksPage({
               <dd className="font-semibold">
                 {diagnostics.supabaseConfigured ? 'yes' : 'no'}
               </dd>
+            </div>
+            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
+              <dt className="text-[#6F6A63]">Supabase config</dt>
+              <dd className="font-semibold">{diagnostics.supabaseConfigStatus}</dd>
             </div>
             <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
               <dt className="text-[#6F6A63]">Local workers cache</dt>

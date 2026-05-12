@@ -8,6 +8,21 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl && supabaseAnonKey && !isSecretKey,
 )
 
+export const supabaseConfigStatus = !supabaseUrl
+  ? 'missing_url'
+  : !supabaseAnonKey
+    ? 'missing_key'
+    : isSecretKey
+      ? 'secret_key'
+      : 'configured'
+
+export const supabaseConfigMessage =
+  supabaseConfigStatus === 'configured'
+    ? 'Cloud sync ready'
+    : supabaseConfigStatus === 'secret_key'
+      ? 'Invalid Supabase key'
+      : 'Local only'
+
 if (import.meta.env.DEV && isSecretKey) {
   console.warn(
     'Supabase is using a secret key in VITE_SUPABASE_ANON_KEY. Use the public anon or publishable key in browser code.',

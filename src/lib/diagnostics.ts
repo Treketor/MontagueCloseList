@@ -1,4 +1,4 @@
-import { isSupabaseConfigured } from './supabase'
+import { isSupabaseConfigured, supabaseConfigStatus } from './supabase'
 
 const appVersion = '0.1.0'
 
@@ -33,6 +33,7 @@ export function getDiagnostics() {
     appVersion,
     environment: import.meta.env.MODE,
     supabaseConfigured: isSupabaseConfigured,
+    supabaseConfigStatus,
     hasLocalWorkers: Boolean(getStorageItem('closelist_workers')),
     hasLocalTasks: Boolean(getStorageItem('closelist_tasks')),
     localDailyChecklistKeys: countStorageKeys('closelist_daily_close_'),
