@@ -115,7 +115,9 @@ function mergeWorkers(localWorkers: Worker[], cloudWorkers: Worker[]) {
 function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenKey>('today')
   const [workers, setWorkers] = useState<Worker[]>(loadStoredWorkers)
-  const [tasks, setTasks] = useState<ChecklistTask[]>(loadTasks)
+  const [tasks, setTasks] = useState<ChecklistTask[]>(() =>
+    isSupabaseConfigured ? [] : loadTasks(),
+  )
   const startupWorkers = useRef(workers)
   const [isInitialSyncing, setIsInitialSyncing] = useState(isSupabaseConfigured)
   const [hasCloudIssue, setHasCloudIssue] = useState(false)
