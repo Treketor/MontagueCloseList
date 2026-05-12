@@ -32,6 +32,7 @@ type ScreenKey = 'today' | 'this-week' | 'weekly-cleaning' | 'manage-tasks'
 
 const workersStorageKey = 'closelist_workers'
 const selectedWorkerStorageKey = 'closelist_selected_worker_id'
+const cloudTasksInitializedStorageKey = 'closelist_cloud_tasks_initialized'
 
 const navItems: NavItem<ScreenKey>[] = [
   { key: 'today', label: 'Today' },
@@ -171,10 +172,16 @@ function App() {
       try {
         setIsInitialSyncing(true)
 
-        const [syncedWorkers, syncedTasks] = await Promise.all([
+        const [syncedWorkers, cloudTasks] = await Promise.all([
           syncWorkersToSupabase(startupWorkers.current),
-          seedTasksToSupabaseIfEmpty(startupTasks.current),
+          fetchTasksFromSupabase(),
         ])
+        const hasInitializedCloudTasks =
+          getStorageItem(cloudTasksInitializedStorageKey) === 'true'
+        const syncedTasks =
+          cloudTasks.length > 0 || hasInitializedCloudTasks
+            ? cloudTasks
+            : await seedTasksToSupabaseIfEmpty(startupTasks.current)
 
         if (isCancelled) {
           return
@@ -183,10 +190,9 @@ function App() {
         setWorkers(syncedWorkers)
         setStorageItem(workersStorageKey, JSON.stringify(syncedWorkers))
 
-        if (syncedTasks.length > 0) {
-          saveTasks(syncedTasks)
-          setTasks(syncedTasks)
-        }
+        saveTasks(syncedTasks)
+        setTasks(syncedTasks)
+        setStorageItem(cloudTasksInitializedStorageKey, 'true')
       } catch (error) {
         console.warn('Supabase startup sync failed. Continuing locally.', error)
         setHasCloudIssue(true)
@@ -364,10 +370,9 @@ function App() {
 
       const cloudTasks = await fetchTasksFromSupabase()
 
-      if (cloudTasks.length > 0) {
-        saveTasks(cloudTasks)
-        setTasks(cloudTasks)
-      }
+      saveTasks(cloudTasks)
+      setTasks(cloudTasks)
+      setStorageItem(cloudTasksInitializedStorageKey, 'true')
     } catch (error) {
       console.warn('Unable to delete task from Supabase. Keeping local cache.', error)
       setHasCloudIssue(true)
@@ -389,15 +394,12 @@ function App() {
         fetchTasksFromSupabase(),
       ])
 
-      if (cloudWorkers.length > 0) {
-        setWorkers(cloudWorkers)
-        setStorageItem(workersStorageKey, JSON.stringify(cloudWorkers))
-      }
+      setWorkers(cloudWorkers)
+      setStorageItem(workersStorageKey, JSON.stringify(cloudWorkers))
 
-      if (cloudTasks.length > 0) {
-        setTasks(cloudTasks)
-        saveTasks(cloudTasks)
-      }
+      setTasks(cloudTasks)
+      saveTasks(cloudTasks)
+      setStorageItem(cloudTasksInitializedStorageKey, 'true')
 
       setHasCloudIssue(false)
       setSetupDataStatus('Setup data refreshed.')

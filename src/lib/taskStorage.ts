@@ -89,10 +89,6 @@ export function loadTasks() {
 
     const tasks = parsedValue.tasks.filter(isChecklistTask)
 
-    if (tasks.length === 0) {
-      return createInitialTasks()
-    }
-
     return tasks.sort(sortTasks)
   } catch {
     return createInitialTasks()
