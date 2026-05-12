@@ -74,6 +74,11 @@ export async function syncWorkersToSupabase(
 
   try {
     const existingWorkers = await fetchWorkersFromSupabase()
+
+    if (existingWorkers.length > 0) {
+      return existingWorkers
+    }
+
     const workersByName = new Map(
       existingWorkers.map((worker) => [worker.name.toLowerCase(), worker]),
     )
@@ -148,35 +153,90 @@ export async function deleteWorkerFromSupabase(worker: Worker): Promise<boolean>
     return true
   }
 
-  let workerIdToDelete = worker.id
-
-  if (!isUuid(workerIdToDelete)) {
-    const existingWorkers = await fetchWorkersFromSupabase()
-    const matchingWorker = existingWorkers.find(
-      (existingWorker) =>
-        existingWorker.name.toLowerCase() === worker.name.trim().toLowerCase(),
-    )
-
-    workerIdToDelete = matchingWorker?.id ?? ''
-  }
+  const supabaseClient = supabase
+  const existingWorkers = await fetchWorkersFromSupabase()
+  const matchingWorker = existingWorkers.find(
+    (existingWorker) =>
+      existingWorker.id === worker.id ||
+      existingWorker.name.toLowerCase() === worker.name.trim().toLowerCase(),
+  )
+  const workerIdToDelete =
+    matchingWorker?.id ?? (isUuid(worker.id) ? worker.id : '')
 
   if (!workerIdToDelete) {
-    warn('Unable to delete worker from Supabase.', 'No matching worker found.')
+    return true
+  }
+
+  const deleteWorker = async () =>
+    supabaseClient
+      .from('workers')
+      .delete()
+      .eq('id', workerIdToDelete)
+      .select('id')
+
+  const firstDeleteResult = await deleteWorker()
+
+  if (
+    !firstDeleteResult.error &&
+    firstDeleteResult.data &&
+    firstDeleteResult.data.length > 0
+  ) {
+    return true
+  }
+
+  const workersAfterFirstDelete = await fetchWorkersFromSupabase()
+  const workerStillExists = workersAfterFirstDelete.some(
+    (existingWorker) =>
+      existingWorker.id === workerIdToDelete ||
+      existingWorker.name.toLowerCase() === worker.name.trim().toLowerCase(),
+  )
+
+  if (!workerStillExists) {
+    return true
+  }
+
+  const { error: closingChecklistUpdateError } = await supabase
+    .from('closing_checklists')
+    .update({ worker_id: null })
+    .eq('worker_id', workerIdToDelete)
+
+  if (closingChecklistUpdateError) {
+    warn(
+      'Unable to clear daily checklist worker references before deleting worker.',
+      closingChecklistUpdateError.message,
+    )
     return false
   }
 
-  const { data, error } = await supabase
-    .from('workers')
-    .delete()
-    .eq('id', workerIdToDelete)
-    .select('id')
+  const { error: weeklyCleaningUpdateError } = await supabase
+    .from('weekly_cleaning_items')
+    .update({ worker_id: null })
+    .eq('worker_id', workerIdToDelete)
+
+  if (weeklyCleaningUpdateError) {
+    warn(
+      'Unable to clear weekly cleaning worker references before deleting worker.',
+      weeklyCleaningUpdateError.message,
+    )
+    return false
+  }
+
+  const { data, error } = await deleteWorker()
 
   if (error || !data || data.length === 0) {
     warn(
       'Unable to delete worker from Supabase.',
       error?.message ?? 'No worker rows were deleted.',
     )
-    return false
+
+    const remainingWorkers = await fetchWorkersFromSupabase()
+    const stillExists = remainingWorkers.some(
+      (existingWorker) =>
+        existingWorker.id === workerIdToDelete ||
+        existingWorker.name.toLowerCase() === worker.name.trim().toLowerCase(),
+    )
+
+    return !stillExists
   }
 
   return true

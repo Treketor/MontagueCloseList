@@ -154,16 +154,51 @@ async function findTaskIdsForDelete(task: ChecklistTask) {
   return ((data ?? []) as Pick<TaskRow, 'id'>[]).map((row) => row.id)
 }
 
+async function taskRowsStillExist(taskIds: string[]) {
+  if (!supabase || taskIds.length === 0) {
+    return false
+  }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id')
+    .in('id', taskIds)
+
+  if (error) {
+    warn('Unable to verify deleted task rows.', error.message)
+    return true
+  }
+
+  return (data ?? []).length > 0
+}
+
 export async function deleteTaskFromSupabase(task: ChecklistTask): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) {
     return true
   }
 
+  const supabaseClient = supabase
   const taskIds = await findTaskIdsForDelete(task)
 
   if (taskIds.length === 0) {
-    warn('No matching Supabase task row found to delete.', task.id)
-    return false
+    return true
+  }
+
+  const deleteTasks = async () =>
+    supabaseClient.from('tasks').delete().in('id', taskIds).select('id')
+
+  const firstDeleteResult = await deleteTasks()
+
+  if (
+    !firstDeleteResult.error &&
+    firstDeleteResult.data &&
+    firstDeleteResult.data.length > 0
+  ) {
+    return true
+  }
+
+  if (!firstDeleteResult.error && !(await taskRowsStillExist(taskIds))) {
+    return true
   }
 
   const { error: closingItemsError } = await supabase
@@ -186,18 +221,14 @@ export async function deleteTaskFromSupabase(task: ChecklistTask): Promise<boole
     return false
   }
 
-  const { data: deletedTasks, error: taskError } = await supabase
-    .from('tasks')
-    .delete()
-    .in('id', taskIds)
-    .select('id')
+  const { data: deletedTasks, error: taskError } = await deleteTasks()
 
   if (taskError || !deletedTasks || deletedTasks.length === 0) {
     warn(
       'Unable to delete task from Supabase.',
       taskError?.message ?? 'No task rows were deleted.',
     )
-    return false
+    return !(await taskRowsStillExist(taskIds))
   }
 
   return true
