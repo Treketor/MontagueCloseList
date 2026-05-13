@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import type { KeyboardEvent } from 'react'
 import type { ChecklistTask } from '../types'
 
 type ChecklistTaskRowProps = {
@@ -24,33 +25,52 @@ function ChecklistTaskRow({
   skipReason,
   task,
 }: ChecklistTaskRowProps) {
+  function handleRowToggle() {
+    if (!disabled) {
+      onToggle()
+    }
+  }
+
+  function handleRowKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (disabled) {
+      return
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onToggle()
+    }
+  }
+
   return (
     <div
+      aria-disabled={disabled}
+      aria-pressed={isCompleted}
       className={[
-        'interactive-press flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left',
-        disabled ? 'opacity-55' : 'active:bg-[#EFE8DD]',
+        'interactive-press flex min-h-14 w-full items-start gap-3 border-b border-[#DED8CF] py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFFCF7]',
+        disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer active:bg-[#EFE8DD]',
       ].join(' ')}
+      onClick={handleRowToggle}
+      onKeyDown={handleRowKeyDown}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
     >
-      <button
-        aria-pressed={isCompleted}
+      <span
         className={[
-          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFFCF7]',
+          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors duration-150 ease-out',
           isCompleted
             ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'
             : isSkipped
               ? 'border-[#B8A56E] bg-[#EFE8DD] text-[#6F6A63]'
               : 'border-[#DED8CF] bg-[#FFFCF7] text-transparent',
         ].join(' ')}
-        disabled={disabled}
-        onClick={onToggle}
-        type="button"
       >
         {isCompleted ? (
           <Check className="h-4 w-4 animate-rise-in motion-reduce:animate-none" />
         ) : isSkipped ? (
           <span className="text-sm font-extrabold">-</span>
         ) : null}
-      </button>
+      </span>
       <span className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
         <span className="min-w-0">
         <span
@@ -95,7 +115,10 @@ function ChecklistTaskRow({
             <button
               className="min-h-9 rounded-lg border border-[#DED8CF] px-3 text-sm font-bold text-[#6F6A63] transition-colors active:bg-[#EFE8DD] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A]"
               disabled={disabled}
-              onClick={onSkip}
+              onClick={(event) => {
+                event.stopPropagation()
+                onSkip()
+              }}
               type="button"
             >
               {isSkipped ? 'Edit reason' : 'Skip'}
@@ -105,7 +128,10 @@ function ChecklistTaskRow({
             <button
               className="min-h-9 rounded-lg border border-[#DED8CF] px-3 text-sm font-bold text-[#6F6A63] transition-colors active:bg-[#EFE8DD] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F1D1A]"
               disabled={disabled}
-              onClick={onMarkPending}
+              onClick={(event) => {
+                event.stopPropagation()
+                onMarkPending()
+              }}
               type="button"
             >
               Mark pending
