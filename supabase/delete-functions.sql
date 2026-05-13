@@ -1,3 +1,21 @@
+alter table public.workers
+add column if not exists updated_at timestamptz not null default now();
+
+alter table public.tasks
+add column if not exists updated_at timestamptz not null default now();
+
+alter table public.closing_checklists
+add column if not exists updated_at timestamptz not null default now();
+
+alter table public.closing_checklist_items
+add column if not exists updated_at timestamptz not null default now();
+
+alter table public.weekly_cleaning_runs
+add column if not exists updated_at timestamptz not null default now();
+
+alter table public.weekly_cleaning_items
+add column if not exists updated_at timestamptz not null default now();
+
 create or replace function public.delete_worker(worker_id_to_delete uuid)
 returns boolean
 language plpgsql

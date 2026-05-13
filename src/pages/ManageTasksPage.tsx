@@ -1,18 +1,27 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type FormEvent,
   type KeyboardEvent,
 } from 'react'
+import {
+  ClipboardCheck,
+  ClipboardList,
+  Sparkles,
+  Stethoscope,
+  UsersRound,
+} from 'lucide-react'
+import AppModal from '../components/AppModal'
 import PageHeader from '../components/PageHeader'
-import PrimaryButton from '../components/PrimaryButton'
 import SectionCard from '../components/SectionCard'
+import SettingsCard from '../components/SettingsCard'
 import StatusMessage from '../components/StatusMessage'
-import { getDiagnostics } from '../lib/diagnostics'
+import DiagnosticsPanel from '../components/manage/DiagnosticsPanel'
+import TaskCleanupManager from '../components/manage/TaskCleanupManager'
+import TaskTypeManager from '../components/manage/TaskTypeManager'
+import WorkersManager from '../components/manage/WorkersManager'
 import { verifyManagerCodeStatus } from '../lib/managerAccess'
-import { getAllTasksByType } from '../lib/taskStorage'
 import type { ChecklistTask, TaskSection, TaskType, Worker } from '../types'
 
 type ManageTasksPageProps = {
@@ -27,11 +36,13 @@ type ManageTasksPageProps = {
   workers: Worker[]
 }
 
-type TaskFormState = {
-  description: string
-  section: TaskSection
-  title: string
-}
+type ManageModal =
+  | 'workers'
+  | 'daily'
+  | 'weekly'
+  | 'cleanup'
+  | 'diagnostics'
+  | null
 
 const sections: TaskSection[] = [
   'Bar',
@@ -41,64 +52,8 @@ const sections: TaskSection[] = [
   'Admin',
   'Other',
 ]
-const taskTypes: { label: string; value: TaskType }[] = [
-  { label: 'Daily Close', value: 'daily_closing' },
-  { label: 'Weekly Cleaning', value: 'weekly_cleaning' },
-]
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', 'Delete']
 const managerCodeLength = 4
-const emptyForm: TaskFormState = {
-  description: '',
-  section: 'Bar',
-  title: '',
-}
-const inputClass =
-  'min-h-12 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-4 text-lg text-[#1F1D1A] placeholder:text-[#6F6A63] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
-const textareaClass =
-  'min-h-28 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-4 text-lg font-normal leading-relaxed text-[#1F1D1A] placeholder:text-[#6F6A63] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
-const secondaryButtonClass =
-  'min-h-12 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-5 text-base font-bold text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
-const darkButtonClass =
-  'min-h-12 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-5 text-base font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]'
-
-function createTaskId(taskType: TaskType, title: string) {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
-
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-
-  return `${taskType}-${slug || 'task'}-${Date.now()}`
-}
-
-function hasDuplicateActiveTitle(
-  tasks: ChecklistTask[],
-  taskType: TaskType,
-  title: string,
-  ignoredTaskId?: string,
-) {
-  const normalizedTitle = title.trim().toLowerCase()
-
-  return tasks.some(
-    (task) =>
-      task.id !== ignoredTaskId &&
-      task.taskType === taskType &&
-      task.isActive &&
-      task.title.trim().toLowerCase() === normalizedTitle,
-  )
-}
-
-function getGroupedTasks(tasks: ChecklistTask[]) {
-  return sections
-    .map((section) => ({
-      section,
-      tasks: tasks.filter((task) => task.section === section),
-    }))
-    .filter((group) => group.tasks.length > 0)
-}
 
 function ManageTasksPage({
   onDeleteTask,
@@ -115,28 +70,7 @@ function ManageTasksPage({
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [unlockError, setUnlockError] = useState('')
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
-  const [selectedTaskType, setSelectedTaskType] =
-    useState<TaskType>('daily_closing')
-  const [addForm, setAddForm] = useState<TaskFormState>(emptyForm)
-  const [addError, setAddError] = useState('')
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<TaskFormState>(emptyForm)
-  const [editError, setEditError] = useState('')
-  const [taskError, setTaskError] = useState('')
-  const [workerName, setWorkerName] = useState('')
-  const [workerError, setWorkerError] = useState('')
-  const [editingWorkerId, setEditingWorkerId] = useState<string | null>(null)
-  const [editingWorkerName, setEditingWorkerName] = useState('')
-  const [confirmingDeleteWorkerId, setConfirmingDeleteWorkerId] = useState<string | null>(null)
-  const [confirmingDeleteTaskId, setConfirmingDeleteTaskId] = useState<string | null>(null)
-  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false)
-  const [isConfirmingCacheClear, setIsConfirmingCacheClear] = useState(false)
-  const diagnostics = getDiagnostics()
-  const visibleTasks = useMemo(
-    () => getAllTasksByType(tasks, selectedTaskType),
-    [selectedTaskType, tasks],
-  )
-  const groupedTasks = useMemo(() => getGroupedTasks(visibleTasks), [visibleTasks])
+  const [activeModal, setActiveModal] = useState<ManageModal>(null)
 
   const verifyCode = useCallback(async () => {
     if (isVerifyingCode || code.length !== managerCodeLength) {
@@ -221,764 +155,192 @@ function ManageTasksPage({
     }
   }
 
-  function persistTasks(nextTasks: ChecklistTask[]) {
-    setTaskError('')
-    onSaveTasks(nextTasks)
-  }
-
-  function handleAddTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const title = addForm.title.trim()
-    const description = addForm.description.trim()
-
-    if (!title) {
-      setAddError('Task title is required.')
-      return
-    }
-
-    if (hasDuplicateActiveTitle(tasks, selectedTaskType, title)) {
-      setAddError('An active task with this title already exists.')
-      return
-    }
-
-    const maxSortOrder = Math.max(
-      0,
-      ...tasks
-        .filter((task) => task.taskType === selectedTaskType)
-        .map((task) => task.sortOrder),
-    )
-    const newTask: ChecklistTask = {
-      id: createTaskId(selectedTaskType, title),
-      title,
-      description: description || undefined,
-      section: addForm.section,
-      taskType: selectedTaskType,
-      sortOrder: maxSortOrder + 1,
-      isActive: true,
-    }
-
-    persistTasks([...tasks, newTask])
-    setAddForm(emptyForm)
-    setAddError('')
-  }
-
-  function startEditing(task: ChecklistTask) {
-    setEditingTaskId(task.id)
-    setConfirmingDeleteTaskId(null)
-    setEditError('')
-    setTaskError('')
-    setEditForm({
-      description: task.description ?? '',
-      section: task.section,
-      title: task.title,
-    })
-  }
-
-  function cancelEditing() {
-    setEditingTaskId(null)
-    setEditError('')
-    setEditForm(emptyForm)
-  }
-
-  function saveEdit(task: ChecklistTask) {
-    const title = editForm.title.trim()
-    const description = editForm.description.trim()
-
-    if (!title) {
-      setEditError('Task title is required.')
-      return
-    }
-
-    if (hasDuplicateActiveTitle(tasks, task.taskType, title, task.id)) {
-      setEditError('An active task with this title already exists.')
-      return
-    }
-
-    persistTasks(
-      tasks.map((currentTask) =>
-        currentTask.id === task.id
-          ? {
-              ...currentTask,
-              title,
-              description: description || undefined,
-              section: editForm.section,
-            }
-          : currentTask,
-      ),
-    )
-    cancelEditing()
-  }
-
-  function deleteTask(taskId: string) {
-    setTaskError('')
-    setEditingTaskId(null)
-    setConfirmingDeleteTaskId(null)
-    void onDeleteTask(taskId)
-  }
-
-  function hasDuplicateWorkerName(name: string, ignoredWorkerId?: string) {
-    const normalizedName = name.trim().toLowerCase()
-
-    return workers.some(
-      (worker) =>
-        worker.id !== ignoredWorkerId &&
-        worker.name.trim().toLowerCase() === normalizedName,
-    )
-  }
-
-  async function addWorker(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const trimmedName = workerName.trim()
-
-    if (!trimmedName) {
-      setWorkerError('Worker name is required.')
-      return
-    }
-
-    if (hasDuplicateWorkerName(trimmedName)) {
-      setWorkerError('A worker with this name already exists.')
-      return
-    }
-
-    const createdWorker = await onCreateWorker(trimmedName)
-
-    if (!createdWorker) {
-      setWorkerError('Could not add worker.')
-      return
-    }
-
-    setWorkerName('')
-    setWorkerError('')
-  }
-
-  function startEditingWorker(worker: Worker) {
-    setWorkerError('')
-    setConfirmingDeleteWorkerId(null)
-    setEditingWorkerId(worker.id)
-    setEditingWorkerName(worker.name)
-  }
-
-  async function saveWorkerEdit(worker: Worker) {
-    const trimmedName = editingWorkerName.trim()
-
-    if (!trimmedName) {
-      setWorkerError('Worker name is required.')
-      return
-    }
-
-    if (hasDuplicateWorkerName(trimmedName, worker.id)) {
-      setWorkerError('A worker with this name already exists.')
-      return
-    }
-
-    const didSave = await onSaveWorker({ ...worker, name: trimmedName })
-
-    if (!didSave) {
-      setWorkerError('Could not save worker.')
-      return
-    }
-
-    setEditingWorkerId(null)
-    setEditingWorkerName('')
-    setWorkerError('')
-  }
-
-  async function deleteWorker(workerId: string) {
-    const didDelete = await onDeleteWorker(workerId)
-
-    if (!didDelete) {
-      setWorkerError('Could not remove worker.')
-      return
-    }
-
-    setConfirmingDeleteWorkerId(null)
-    setWorkerError('')
-  }
-
-  function getDiagnosticsText() {
-    return [
-      `App version: ${diagnostics.appVersion}`,
-      `Environment: ${diagnostics.environment}`,
-      `Cloud sync ready: ${diagnostics.supabaseConfigured ? 'yes' : 'no'}`,
-      `Supabase config status: ${diagnostics.supabaseConfigStatus}`,
-      `Local workers cache: ${diagnostics.hasLocalWorkers ? 'yes' : 'no'}`,
-      `Local tasks cache: ${diagnostics.hasLocalTasks ? 'yes' : 'no'}`,
-      `Local daily checklist cache count: ${diagnostics.localDailyChecklistKeys}`,
-      `Local weekly cleaning cache count: ${diagnostics.localWeeklyCleaningKeys}`,
-    ].join('\n')
-  }
-
-  async function handleCopyDiagnostics() {
-    try {
-      await window.navigator.clipboard.writeText(getDiagnosticsText())
-      setDiagnosticsCopied(true)
-    } catch {
-      setDiagnosticsCopied(false)
-    }
-  }
-
-  function clearLocalCache() {
-    try {
-      const keysToRemove: string[] = []
-
-      for (let index = 0; index < window.localStorage.length; index += 1) {
-        const key = window.localStorage.key(index)
-
-        if (key?.startsWith('closelist_')) {
-          keysToRemove.push(key)
-        }
-      }
-
-      for (const key of keysToRemove) {
-        window.localStorage.removeItem(key)
-      }
-    } catch {
-      // Reload anyway; the app will fall back to in-memory state if storage is unavailable.
-    }
-
-    window.location.reload()
-  }
-
   if (!isUnlocked) {
     return (
       <div className="grid gap-4">
         <div className="mx-auto w-full max-w-lg">
-        <SectionCard>
-          <form
-            className="mx-auto grid max-w-xs gap-4 py-1"
-            onKeyDown={handleKeyDown}
-            onSubmit={handleUnlock}
-          >
-            <div>
-              <p className="mb-3 text-center text-base font-bold text-[#6F6A63]">
-                Manager code
-              </p>
-              <div className="flex min-h-10 items-center justify-center px-4">
-                <p
-                  aria-label={`${code.length} digits entered`}
-                  className="sr-only"
-                >
-                  {code ? '•'.repeat(code.length) : '○○○○'}
+          <SectionCard>
+            <form
+              className="mx-auto grid max-w-xs gap-4 py-1"
+              onKeyDown={handleKeyDown}
+              onSubmit={handleUnlock}
+            >
+              <div>
+                <p className="mb-3 text-center text-base font-bold text-[#6F6A63]">
+                  Manager code
                 </p>
-                <div className="flex gap-3" aria-hidden="true">
-                  {Array.from({ length: managerCodeLength }, (_, index) => (
-                    <span
-                      className={[
-                        'h-3.5 w-3.5 rounded-full border',
-                        index < code.length
-                          ? 'border-[#1F1D1A] bg-[#1F1D1A]'
-                          : 'border-[#CFC7BC] bg-transparent',
-                      ].join(' ')}
-                      key={index}
-                    />
-                  ))}
+                <div className="flex min-h-10 items-center justify-center px-4">
+                  <p
+                    aria-label={`${code.length} digits entered`}
+                    className="sr-only"
+                  >
+                    {code ? '*'.repeat(code.length) : 'empty'}
+                  </p>
+                  <div className="flex gap-3" aria-hidden="true">
+                    {Array.from({ length: managerCodeLength }, (_, index) => (
+                      <span
+                        className={[
+                          'h-3.5 w-3.5 rounded-full border',
+                          index < code.length
+                            ? 'border-[#1F1D1A] bg-[#1F1D1A]'
+                            : 'border-[#CFC7BC] bg-transparent',
+                        ].join(' ')}
+                        key={index}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {unlockError ? (
-              <StatusMessage tone="warning">{unlockError}</StatusMessage>
-            ) : isVerifyingCode ? (
-              <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
-                Checking...
+              {unlockError ? (
+                <StatusMessage tone="warning">{unlockError}</StatusMessage>
+              ) : isVerifyingCode ? (
+                <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
+                  Checking...
+                </div>
+              ) : (
+                <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
+                  Enter the manager code to edit tasks.
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 justify-items-center gap-3">
+                {keypadKeys.map((key) => {
+                  const isUtilityKey = key === 'Clear' || key === 'Delete'
+
+                  return (
+                    <button
+                      className={[
+                        'flex h-16 w-20 items-center justify-center rounded-2xl border font-extrabold focus:outline-none',
+                        isUtilityKey
+                          ? 'border-transparent bg-transparent text-sm text-[#6F6A63] active:bg-[#EFE8DD]'
+                          : 'border-[#DED8CF] bg-[#F7F4EF] text-2xl text-[#1F1D1A] active:bg-[#EFE8DD]',
+                      ].join(' ')}
+                      disabled={isVerifyingCode}
+                      key={key}
+                      onClick={() => handleKeypadInput(key)}
+                      type="button"
+                    >
+                      {key}
+                    </button>
+                  )
+                })}
               </div>
-            ) : (
-              <div className="min-h-14 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-center text-base font-semibold text-[#6F6A63]">
-                Enter the manager code to edit tasks.
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 justify-items-center gap-3">
-              {keypadKeys.map((key) => {
-                const isUtilityKey = key === 'Clear' || key === 'Delete'
-
-                return (
-                  <button
-                    className={[
-                      'flex h-16 w-20 items-center justify-center rounded-2xl border font-extrabold focus:outline-none',
-                      isUtilityKey
-                        ? 'border-transparent bg-transparent text-sm text-[#6F6A63] active:bg-[#EFE8DD]'
-                        : 'border-[#DED8CF] bg-[#F7F4EF] text-2xl text-[#1F1D1A] active:bg-[#EFE8DD]',
-                    ].join(' ')}
-                    disabled={isVerifyingCode}
-                    key={key}
-                    onClick={() => handleKeypadInput(key)}
-                    type="button"
-                  >
-                    {key}
-                  </button>
-                )
-              })}
-            </div>
-
-          </form>
-        </SectionCard>
+            </form>
+          </SectionCard>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="grid gap-6">
-      <PageHeader title="Manage Tasks" description="Edit local checklist tasks." />
+    <div className="grid gap-5">
+      <PageHeader
+        description="Update workers, checklist tasks, and sync tools."
+        title="Manage"
+      />
 
-      <div className="grid grid-cols-2 gap-3">
-        {taskTypes.map((taskType) => {
-          const isSelected = selectedTaskType === taskType.value
-
-          return (
-            <button
-              className={[
-                'min-h-12 rounded-xl border px-4 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]',
-                isSelected
-                  ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'
-                  : 'border-[#DED8CF] bg-[#FFFCF7] text-[#1F1D1A] active:bg-[#EFE8DD]',
-              ].join(' ')}
-              key={taskType.value}
-              onClick={() => {
-                setSelectedTaskType(taskType.value)
-                cancelEditing()
-                setAddError('')
-                setTaskError('')
-              }}
-              type="button"
-            >
-              {taskType.label}
-            </button>
-          )
-        })}
+      <div className="grid gap-3 md:grid-cols-2">
+        <SettingsCard
+          description="Add, edit, or hide staff members."
+          icon={<UsersRound aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('workers')}
+          title="Workers"
+        />
+        <SettingsCard
+          description="Manage the daily closing checklist."
+          icon={<ClipboardCheck aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('daily')}
+          title="Daily Close Tasks"
+        />
+        <SettingsCard
+          description="Manage weekly cleaning tasks."
+          icon={<Sparkles aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('weekly')}
+          title="Weekly Cleaning Tasks"
+        />
+        <SettingsCard
+          description="Find duplicates and manage presets."
+          icon={<ClipboardList aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('cleanup')}
+          title="Task Cleanup"
+        />
+        <SettingsCard
+          description="Check sync status and local cache."
+          icon={<Stethoscope aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('diagnostics')}
+          title="Diagnostics"
+        />
       </div>
 
-      <SectionCard title="Workers">
-        <div className="grid gap-5">
-          <form className="grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={addWorker}>
-            <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-              Add worker
-              <input
-                className={inputClass}
-                onChange={(event) => setWorkerName(event.target.value)}
-                placeholder="Worker name"
-                value={workerName}
-              />
-            </label>
-            <div className="flex items-end">
-              <PrimaryButton type="submit">Add Worker</PrimaryButton>
-            </div>
-          </form>
+      <AppModal
+        description="Add, edit, or hide staff members."
+        isOpen={activeModal === 'workers'}
+        onClose={() => setActiveModal(null)}
+        title="Workers"
+      >
+        <WorkersManager
+          onCreateWorker={onCreateWorker}
+          onDeleteWorker={onDeleteWorker}
+          onSaveWorker={onSaveWorker}
+          workers={workers}
+        />
+      </AppModal>
 
-          {workerError ? (
-            <StatusMessage tone="warning">{workerError}</StatusMessage>
-          ) : null}
+      <AppModal
+        description="Manage the daily closing checklist."
+        isOpen={activeModal === 'daily'}
+        onClose={() => setActiveModal(null)}
+        size="lg"
+        title="Daily Close Tasks"
+      >
+        <TaskTypeManager
+          onDeleteTask={onDeleteTask}
+          onSaveTasks={onSaveTasks}
+          sections={sections}
+          taskType={'daily_closing' as TaskType}
+          tasks={tasks}
+        />
+      </AppModal>
 
-          <ul className="grid gap-3">
-            {workers.length === 0 ? (
-              <li className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4 text-base font-semibold text-[#6F6A63]">
-                No workers yet.
-              </li>
-            ) : null}
+      <AppModal
+        description="Manage weekly cleaning tasks."
+        isOpen={activeModal === 'weekly'}
+        onClose={() => setActiveModal(null)}
+        size="lg"
+        title="Weekly Cleaning Tasks"
+      >
+        <TaskTypeManager
+          onDeleteTask={onDeleteTask}
+          onSaveTasks={onSaveTasks}
+          sections={sections}
+          taskType={'weekly_cleaning' as TaskType}
+          tasks={tasks}
+        />
+      </AppModal>
 
-            {workers.map((worker) => {
-              const isEditingWorker = editingWorkerId === worker.id
-              const isConfirmingDelete = confirmingDeleteWorkerId === worker.id
+      <AppModal
+        description="Find duplicates and manage starter presets."
+        isOpen={activeModal === 'cleanup'}
+        onClose={() => setActiveModal(null)}
+        size="lg"
+        title="Task Cleanup"
+      >
+        <TaskCleanupManager onSaveTasks={onSaveTasks} tasks={tasks} />
+      </AppModal>
 
-              return (
-                <li
-                  className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4"
-                  key={worker.id}
-                >
-                  {isEditingWorker ? (
-                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-                      <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-                        Worker name
-                        <input
-                          className={inputClass}
-                          onChange={(event) =>
-                            setEditingWorkerName(event.target.value)
-                          }
-                          value={editingWorkerName}
-                        />
-                      </label>
-                      <button
-                        className={darkButtonClass}
-                        onClick={() => void saveWorkerEdit(worker)}
-                        type="button"
-                      >
-                        Save
-                      </button>
-                      <button
-                        className={secondaryButtonClass}
-                        onClick={() => {
-                          setEditingWorkerId(null)
-                          setEditingWorkerName('')
-                          setWorkerError('')
-                        }}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                      <p className="text-xl font-semibold text-[#1F1D1A]">
-                        {worker.name}
-                      </p>
-                      <button
-                        className={secondaryButtonClass}
-                        onClick={() => startEditingWorker(worker)}
-                        type="button"
-                      >
-                        Edit
-                      </button>
-                      {isConfirmingDelete ? (
-                        <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                          <p className="text-lg font-bold text-[#1F1D1A]">
-                            Remove this worker?
-                          </p>
-                          <button
-                            className={secondaryButtonClass}
-                            onClick={() => setConfirmingDeleteWorkerId(null)}
-                            type="button"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            className={darkButtonClass}
-                            onClick={() => void deleteWorker(worker.id)}
-                            type="button"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className={secondaryButtonClass}
-                          onClick={() => {
-                            setWorkerError('')
-                            setEditingWorkerId(null)
-                            setConfirmingDeleteWorkerId(worker.id)
-                          }}
-                          type="button"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Add Task">
-        <form className="grid gap-4" onSubmit={handleAddTask}>
-          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-            Title
-            <input
-              className={inputClass}
-              onChange={(event) =>
-                setAddForm((currentForm) => ({
-                  ...currentForm,
-                  title: event.target.value,
-                }))
-              }
-              value={addForm.title}
-            />
-          </label>
-          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-            Description
-            <textarea
-              className={textareaClass}
-              onChange={(event) =>
-                setAddForm((currentForm) => ({
-                  ...currentForm,
-                  description: event.target.value,
-                }))
-              }
-              value={addForm.description}
-            />
-          </label>
-          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-            Section
-            <select
-              className={inputClass}
-              onChange={(event) =>
-                setAddForm((currentForm) => ({
-                  ...currentForm,
-                  section: event.target.value as TaskSection,
-                }))
-              }
-              value={addForm.section}
-            >
-              {sections.map((section) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))}
-            </select>
-          </label>
-          {addError ? (
-            <StatusMessage tone="warning">{addError}</StatusMessage>
-          ) : null}
-          <PrimaryButton type="submit">Add Task</PrimaryButton>
-        </form>
-      </SectionCard>
-
-      <SectionCard title="Tasks">
-        <div className="grid gap-6">
-          {taskError ? (
-            <StatusMessage tone="warning">{taskError}</StatusMessage>
-          ) : null}
-
-          {groupedTasks.map((group) => (
-            <section key={group.section}>
-              <h3 className="mb-3 text-xl font-extrabold text-[#1F1D1A]">{group.section}</h3>
-              <ul className="grid gap-3">
-                {group.tasks.map((task) => {
-                  const isEditing = editingTaskId === task.id
-
-                  return (
-                    <li
-                      className="rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] p-4"
-                      key={task.id}
-                    >
-                      {isEditing ? (
-                        <div className="grid gap-4">
-                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-                            Title
-                            <input
-                              className={inputClass}
-                              onChange={(event) =>
-                                setEditForm((currentForm) => ({
-                                  ...currentForm,
-                                  title: event.target.value,
-                                }))
-                              }
-                              value={editForm.title}
-                            />
-                          </label>
-                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-                            Description
-                            <textarea
-                              className={textareaClass}
-                              onChange={(event) =>
-                                setEditForm((currentForm) => ({
-                                  ...currentForm,
-                                  description: event.target.value,
-                                }))
-                              }
-                              value={editForm.description}
-                            />
-                          </label>
-                          <label className="grid gap-2 text-lg font-bold text-[#1F1D1A]">
-                            Section
-                            <select
-                              className={inputClass}
-                              onChange={(event) =>
-                                setEditForm((currentForm) => ({
-                                  ...currentForm,
-                                  section: event.target.value as TaskSection,
-                                }))
-                              }
-                              value={editForm.section}
-                            >
-                              {sections.map((section) => (
-                                <option key={section} value={section}>
-                                  {section}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          {editError ? (
-                            <StatusMessage tone="warning">{editError}</StatusMessage>
-                          ) : null}
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <PrimaryButton onClick={() => saveEdit(task)}>
-                              Save
-                            </PrimaryButton>
-                            <button
-                              className={secondaryButtonClass}
-                              onClick={cancelEditing}
-                              type="button"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4">
-                          <div>
-                            <p
-                              className={[
-                                'text-xl font-semibold leading-tight',
-                                task.isActive ? 'text-[#1F1D1A]' : 'text-[#6F6A63]',
-                              ].join(' ')}
-                            >
-                              {task.title}
-                            </p>
-                            {task.description ? (
-                              <p className="mt-2 text-base leading-relaxed text-[#6F6A63]">
-                                {task.description}
-                              </p>
-                            ) : null}
-                            <p className="mt-3 text-base font-bold text-[#6F6A63]">
-                              {task.section}
-                            </p>
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-3">
-                            <button
-                              className={secondaryButtonClass}
-                              onClick={() => startEditing(task)}
-                              type="button"
-                            >
-                              Edit
-                            </button>
-                            {confirmingDeleteTaskId === task.id ? (
-                              <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 sm:col-span-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-                                <p className="text-lg font-bold text-[#1F1D1A]">
-                                  Remove this task permanently?
-                                </p>
-                                <button
-                                  className={secondaryButtonClass}
-                                  onClick={() => setConfirmingDeleteTaskId(null)}
-                                  type="button"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  className={darkButtonClass}
-                                  onClick={() => deleteTask(task.id)}
-                                  type="button"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                className={secondaryButtonClass}
-                                onClick={() => {
-                                  setTaskError('')
-                                  setConfirmingDeleteTaskId(task.id)
-                                }}
-                                type="button"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Diagnostics">
-        <div className="grid gap-4">
-          <dl className="grid gap-3 text-base">
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">App version</dt>
-              <dd className="font-semibold">{diagnostics.appVersion}</dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Environment</dt>
-              <dd className="font-semibold">{diagnostics.environment}</dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Cloud sync ready</dt>
-              <dd className="font-semibold">
-                {diagnostics.supabaseConfigured ? 'yes' : 'no'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Supabase config</dt>
-              <dd className="font-semibold">{diagnostics.supabaseConfigStatus}</dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Local workers cache</dt>
-              <dd className="font-semibold">
-                {diagnostics.hasLocalWorkers ? 'yes' : 'no'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Local tasks cache</dt>
-              <dd className="font-semibold">
-                {diagnostics.hasLocalTasks ? 'yes' : 'no'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Daily checklist cache</dt>
-              <dd className="font-semibold">{diagnostics.localDailyChecklistKeys}</dd>
-            </div>
-            <div className="flex justify-between gap-4 border-b border-[#DED8CF] pb-2">
-              <dt className="text-[#6F6A63]">Weekly cleaning cache</dt>
-              <dd className="font-semibold">{diagnostics.localWeeklyCleaningKeys}</dd>
-            </div>
-          </dl>
-
-          {setupDataStatus ? (
-            <StatusMessage
-              tone={
-                setupDataStatus.startsWith('Could not') ? 'warning' : 'neutral'
-              }
-            >
-              {setupDataStatus}
-            </StatusMessage>
-          ) : null}
-
-          {diagnosticsCopied ? (
-            <StatusMessage tone="success">Diagnostics copied.</StatusMessage>
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PrimaryButton onClick={() => void onRefreshCloudData()}>
-              Refresh cloud data
-            </PrimaryButton>
-            <button
-              className={secondaryButtonClass}
-              onClick={() => void handleCopyDiagnostics()}
-              type="button"
-            >
-              Copy diagnostics
-            </button>
-          </div>
-
-          {isConfirmingCacheClear ? (
-            <div className="grid gap-3 rounded-xl border border-[#DED8CF] bg-[#F7F4EF] p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-              <p className="text-lg font-bold text-[#1F1D1A]">
-                Clear CloseList local cache on this device?
-              </p>
-              <button
-                className={secondaryButtonClass}
-                onClick={() => setIsConfirmingCacheClear(false)}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className={darkButtonClass}
-                onClick={clearLocalCache}
-                type="button"
-              >
-                Clear cache
-              </button>
-            </div>
-          ) : (
-            <button
-              className={secondaryButtonClass}
-              onClick={() => setIsConfirmingCacheClear(true)}
-              type="button"
-            >
-              Clear local cache on this device
-            </button>
-          )}
-        </div>
-      </SectionCard>
+      <AppModal
+        description="Check sync status and local cache."
+        isOpen={activeModal === 'diagnostics'}
+        onClose={() => setActiveModal(null)}
+        size="lg"
+        title="Diagnostics"
+      >
+        <DiagnosticsPanel
+          onRefreshCloudData={onRefreshCloudData}
+          setupDataStatus={setupDataStatus}
+        />
+      </AppModal>
     </div>
   )
 }
