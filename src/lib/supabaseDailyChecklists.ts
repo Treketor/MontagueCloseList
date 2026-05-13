@@ -85,12 +85,12 @@ export async function upsertClosingChecklistToSupabase(
     }))
 
   const { data: rpcData, error: rpcError } = await supabase.rpc(
-    'closelist_upsert_closing_checklist',
+    'closelist_save_daily_close',
     {
-      checklist_bar_date: draft.barDate,
-      checklist_worker_id: isUuid(draft.workerId) ? draft.workerId : null,
+      checklist_bar_date_text: draft.barDate,
+      checklist_worker_id_text: isUuid(draft.workerId) ? draft.workerId : null,
       checklist_notes: draft.notes,
-      checklist_submitted_at: draft.submittedAt,
+      checklist_submitted_at_text: draft.submittedAt,
       checklist_items: validItemRows,
     },
   )
