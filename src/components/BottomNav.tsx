@@ -40,7 +40,7 @@ function BottomNav<T extends string>({
             <button
               aria-current={isActive ? 'page' : undefined}
               className={[
-                'flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold leading-none transition-colors sm:text-base',
+                'interactive-press flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold leading-none sm:text-base',
                 'focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]',
                 isActive
                   ? 'border-[#1F1D1A] bg-[#1F1D1A] text-[#FFFCF7]'

@@ -19,7 +19,14 @@ function sortTasks(firstTask: ChecklistTask, secondTask: ChecklistTask) {
     return typeSort
   }
 
-  return firstTask.sortOrder - secondTask.sortOrder
+  if (firstTask.section === secondTask.section) {
+    if (Boolean(firstTask.isCritical) !== Boolean(secondTask.isCritical)) {
+      return firstTask.isCritical ? -1 : 1
+    }
+  }
+
+  return firstTask.sortOrder - secondTask.sortOrder ||
+    firstTask.title.localeCompare(secondTask.title)
 }
 
 function isChecklistTask(value: unknown): value is ChecklistTask {
@@ -113,7 +120,7 @@ export function getActiveTasksByType(
 ) {
   return tasks
     .filter((task) => task.taskType === taskType && task.isActive)
-    .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder)
+    .sort(sortTasks)
 }
 
 export function getAllTasksByType(tasks: ChecklistTask[], taskType: TaskType) {

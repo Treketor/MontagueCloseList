@@ -121,6 +121,9 @@ function App() {
   const startupWorkers = useRef(workers)
   const [isInitialSyncing, setIsInitialSyncing] = useState(isSupabaseConfigured)
   const [hasCloudIssue, setHasCloudIssue] = useState(false)
+  const [lastSuccessfulSyncAt, setLastSuccessfulSyncAt] = useState<string | null>(null)
+  const [lastSyncErrorAt, setLastSyncErrorAt] = useState<string | null>(null)
+  const [lastSyncErrorMessage, setLastSyncErrorMessage] = useState('')
   const [headerSyncDetail, setHeaderSyncDetail] = useState('')
   const [setupDataStatus, setSetupDataStatus] = useState('')
   const [selectedWorkerId, setSelectedWorkerId] = useState(
@@ -185,9 +188,13 @@ function App() {
 
         saveTasks(syncedTasks)
         setTasks(syncedTasks)
+        setLastSuccessfulSyncAt(new Date().toISOString())
+        setLastSyncErrorMessage('')
       } catch (error) {
         console.warn('Supabase startup sync failed. Continuing locally.', error)
         setHasCloudIssue(true)
+        setLastSyncErrorAt(new Date().toISOString())
+        setLastSyncErrorMessage('Startup sync failed.')
       } finally {
         if (!isCancelled) {
           setIsInitialSyncing(false)
@@ -280,6 +287,8 @@ function App() {
 
     if (!savedWorker) {
       setHasCloudIssue(true)
+      setLastSyncErrorAt(new Date().toISOString())
+      setLastSyncErrorMessage('Could not save worker.')
       return false
     }
 
@@ -310,6 +319,8 @@ function App() {
 
     if (!didDelete) {
       setHasCloudIssue(true)
+      setLastSyncErrorAt(new Date().toISOString())
+      setLastSyncErrorMessage('Could not delete worker.')
       return false
     }
 
@@ -334,9 +345,13 @@ function App() {
       saveTasks(syncedTasks)
       setTasks(syncedTasks)
       setHasCloudIssue(false)
+      setLastSuccessfulSyncAt(new Date().toISOString())
+      setLastSyncErrorMessage('')
     } catch (error) {
       console.warn('Unable to save tasks to Supabase. Keeping local cache.', error)
       setHasCloudIssue(true)
+      setLastSyncErrorAt(new Date().toISOString())
+      setLastSyncErrorMessage('Could not save tasks.')
     }
   }
 
@@ -356,6 +371,8 @@ function App() {
 
       if (!didDelete) {
         setHasCloudIssue(true)
+        setLastSyncErrorAt(new Date().toISOString())
+        setLastSyncErrorMessage('Could not delete task.')
         return
       }
 
@@ -363,9 +380,12 @@ function App() {
 
       saveTasks(cloudTasks)
       setTasks(cloudTasks)
+      setLastSuccessfulSyncAt(new Date().toISOString())
     } catch (error) {
       console.warn('Unable to delete task from Supabase. Keeping local cache.', error)
       setHasCloudIssue(true)
+      setLastSyncErrorAt(new Date().toISOString())
+      setLastSyncErrorMessage('Could not delete task.')
     }
   }
 
@@ -391,10 +411,14 @@ function App() {
       saveTasks(cloudTasks)
 
       setHasCloudIssue(false)
+      setLastSuccessfulSyncAt(new Date().toISOString())
+      setLastSyncErrorMessage('')
       setSetupDataStatus('Setup data refreshed.')
     } catch (error) {
       console.warn('Unable to refresh setup data from Supabase.', error)
       setHasCloudIssue(true)
+      setLastSyncErrorAt(new Date().toISOString())
+      setLastSyncErrorMessage('Could not refresh setup data.')
       setSetupDataStatus('Could not refresh setup data.')
     } finally {
       setIsInitialSyncing(false)
@@ -432,6 +456,7 @@ function App() {
     ),
     'manage-tasks': (
       <ManageTasksPage
+        isCloudSyncEnabled={isSupabaseConfigured}
         onCreateWorker={handleCreateWorker}
         onDeleteTask={handleDeleteTask}
         onDeleteWorker={handleDeleteWorker}
@@ -449,6 +474,10 @@ function App() {
     <AppShell
       activeScreen={activeScreen}
       barDate={readableBarDate}
+      lastSyncErrorAt={lastSyncErrorAt}
+      lastSyncErrorMessage={lastSyncErrorMessage}
+      lastSuccessfulSyncAt={lastSuccessfulSyncAt}
+      onRefreshCloudData={refreshCloudSetupData}
       syncDetail={headerSyncDetail}
       syncStatus={isInitialSyncing ? 'syncing' : hasCloudIssue ? 'issue' : 'ready'}
       navItems={navItems}

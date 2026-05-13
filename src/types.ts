@@ -21,12 +21,17 @@ export type ChecklistTask = {
   taskType: TaskType
   sortOrder: number
   isActive: boolean
+  isCritical?: boolean
 }
+
+export type ChecklistItemStatus = 'pending' | 'completed' | 'skipped'
 
 export type ChecklistItemState = {
   taskId: string
   isCompleted: boolean
+  status?: ChecklistItemStatus
   completedAt?: string
+  skipReason?: string
 }
 
 export type DailyChecklistDraft = {

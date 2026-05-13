@@ -12,6 +12,7 @@ type TaskCleanupManagerProps = {
 type PresetTask = {
   title: string
   description?: string
+  isCritical?: boolean
   section: TaskSection
   sortOrder: number
 }
@@ -105,6 +106,7 @@ function TaskCleanupManager({ onSaveTasks, tasks }: TaskCleanupManagerProps) {
       .map((task) => ({
         title: task.title,
         description: task.description,
+        isCritical: task.isCritical,
         section: task.section,
         sortOrder: task.sortOrder,
       }))
@@ -155,6 +157,7 @@ function TaskCleanupManager({ onSaveTasks, tasks }: TaskCleanupManagerProps) {
       taskType,
       sortOrder: index + 1,
       isActive: true,
+      isCritical: task.isCritical ?? false,
     }))
 
     onSaveTasks([...otherTasks, ...disabledCurrentTasks, ...nextPresetTasks])
@@ -325,6 +328,11 @@ function TaskCleanupManager({ onSaveTasks, tasks }: TaskCleanupManagerProps) {
                     >
                       <p className="text-base font-bold text-[#1F1D1A]">
                         {task.title}
+                        {task.isCritical ? (
+                          <span className="ml-2 inline-flex rounded-full border border-[#DED8CF] bg-[#EFE8DD] px-2 py-0.5 align-middle text-xs font-extrabold text-[#6F6A63]">
+                            Important
+                          </span>
+                        ) : null}
                       </p>
                       <p className="text-sm font-bold text-[#6F6A63]">
                         {task.section}

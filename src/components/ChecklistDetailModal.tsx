@@ -1,5 +1,7 @@
 import { formatReadableDate } from '../lib/date'
 import { Check } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { getItemStatus } from '../lib/checklistStats'
 import type {
   ChecklistTask,
   DailyChecklistDraft,
@@ -64,9 +66,9 @@ function ChecklistDetailModal({
   )
   const groupedTasks = getGroupedTasks(tasks, itemStates)
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#1F1D1A]/70 p-4 sm:p-8">
-      <div className="mx-auto flex max-h-full max-w-4xl flex-col rounded-2xl bg-[#FFFCF7] text-[#1F1D1A]">
+  return createPortal(
+    <div className="fixed inset-0 z-50 animate-fade-in bg-[#1F1D1A]/70 p-4 motion-reduce:animate-none sm:p-8">
+      <div className="mx-auto flex max-h-full max-w-4xl animate-rise-in flex-col rounded-2xl bg-[#FFFCF7] text-[#1F1D1A] motion-reduce:animate-none">
         <div className="flex items-start justify-between gap-4 border-b border-[#DED8CF] p-5">
           <div>
             <p className="text-3xl font-extrabold leading-tight">
@@ -75,7 +77,7 @@ function ChecklistDetailModal({
             <p className="mt-2 text-xl font-semibold text-[#6F6A63]">{workerName}</p>
           </div>
           <button
-            className="min-h-12 shrink-0 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+            className="interactive-press min-h-12 shrink-0 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
             onClick={onClose}
             type="button"
           >
@@ -98,8 +100,10 @@ function ChecklistDetailModal({
               <h3 className="mb-2 text-2xl font-extrabold">{group.section}</h3>
               <ul>
                 {group.tasks.map((task) => {
-                  const isCompleted =
-                    itemStates.get(task.id)?.isCompleted ?? false
+                  const itemState = itemStates.get(task.id)
+                  const status = getItemStatus(itemState)
+                  const isCompleted = status === 'completed'
+                  const isSkipped = status === 'skipped'
 
                   return (
                     <li
@@ -119,6 +123,11 @@ function ChecklistDetailModal({
                       <div>
                         <p className="text-xl font-bold leading-tight">
                           {task.title}
+                          {task.isCritical ? (
+                            <span className="ml-2 inline-flex rounded-full border border-[#DED8CF] bg-[#EFE8DD] px-2 py-0.5 align-middle text-xs font-extrabold text-[#6F6A63]">
+                              Important
+                            </span>
+                          ) : null}
                         </p>
                         {task.description ? (
                           <p className="mt-2 text-lg leading-relaxed text-[#6F6A63]">
@@ -131,8 +140,13 @@ function ChecklistDetailModal({
                             isCompleted ? 'text-[#6F6A63]' : 'text-[#1F1D1A]',
                           ].join(' ')}
                         >
-                          {isCompleted ? 'Completed' : 'Missed'}
+                          {isCompleted ? 'Completed' : isSkipped ? 'Skipped' : 'Pending'}
                         </p>
+                        {isSkipped && itemState?.skipReason ? (
+                          <p className="mt-1 text-base font-semibold leading-relaxed text-[#6F6A63]">
+                            {itemState.skipReason}
+                          </p>
+                        ) : null}
                       </div>
                     </li>
                   )
@@ -142,7 +156,8 @@ function ChecklistDetailModal({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

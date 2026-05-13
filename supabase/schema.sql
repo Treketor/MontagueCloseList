@@ -15,6 +15,7 @@ create table if not exists public.tasks (
   task_type text not null check (task_type in ('daily_closing', 'weekly_cleaning')),
   sort_order integer not null default 0,
   is_active boolean not null default true,
+  is_critical boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -34,6 +35,8 @@ create table if not exists public.closing_checklist_items (
   checklist_id uuid not null references public.closing_checklists(id) on delete cascade,
   task_id uuid not null references public.tasks(id) on delete restrict,
   is_completed boolean not null default false,
+  status text not null default 'pending' check (status in ('pending', 'completed', 'skipped')),
+  skip_reason text,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -65,11 +68,21 @@ add column if not exists updated_at timestamptz not null default now();
 alter table public.tasks
 add column if not exists updated_at timestamptz not null default now();
 
+alter table public.tasks
+add column if not exists is_critical boolean not null default false;
+
 alter table public.closing_checklists
 add column if not exists updated_at timestamptz not null default now();
 
 alter table public.closing_checklist_items
 add column if not exists updated_at timestamptz not null default now();
+
+alter table public.closing_checklist_items
+add column if not exists status text not null default 'pending'
+check (status in ('pending', 'completed', 'skipped'));
+
+alter table public.closing_checklist_items
+add column if not exists skip_reason text;
 
 alter table public.weekly_cleaning_runs
 add column if not exists updated_at timestamptz not null default now();
@@ -232,6 +245,7 @@ grant execute on function public.delete_worker(uuid) to anon, authenticated;
 grant execute on function public.delete_task(uuid) to anon, authenticated;
 
 drop function if exists public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean);
+drop function if exists public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean, boolean);
 create or replace function public.closelist_upsert_task(
   task_id uuid,
   task_title text,
@@ -239,7 +253,8 @@ create or replace function public.closelist_upsert_task(
   task_section text,
   task_type_value text,
   task_sort_order integer,
-  task_is_active boolean
+  task_is_active boolean,
+  task_is_critical boolean default false
 )
 returns public.tasks
 language plpgsql
@@ -256,7 +271,8 @@ begin
       section,
       task_type,
       sort_order,
-      is_active
+      is_active,
+      is_critical
     )
     values (
       task_title,
@@ -264,7 +280,8 @@ begin
       task_section,
       task_type_value,
       task_sort_order,
-      task_is_active
+      task_is_active,
+      task_is_critical
     )
     returning * into saved_task;
   else
@@ -275,7 +292,8 @@ begin
       section,
       task_type,
       sort_order,
-      is_active
+      is_active,
+      is_critical
     )
     values (
       task_id,
@@ -284,7 +302,8 @@ begin
       task_section,
       task_type_value,
       task_sort_order,
-      task_is_active
+      task_is_active,
+      task_is_critical
     )
     on conflict (id) do update
     set
@@ -293,7 +312,8 @@ begin
       section = excluded.section,
       task_type = excluded.task_type,
       sort_order = excluded.sort_order,
-      is_active = excluded.is_active
+      is_active = excluded.is_active,
+      is_critical = excluded.is_critical
     returning * into saved_task;
   end if;
 
@@ -301,8 +321,8 @@ begin
 end;
 $$;
 
-revoke all on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean) from public;
-grant execute on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean) to anon, authenticated;
+revoke all on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean, boolean) from public;
+grant execute on function public.closelist_upsert_task(uuid, text, text, text, text, integer, boolean, boolean) to anon, authenticated;
 
 drop function if exists public.closelist_upsert_closing_checklist(date, uuid, text, timestamptz, jsonb);
 create or replace function public.closelist_upsert_closing_checklist(
@@ -355,17 +375,23 @@ begin
         checklist_id,
         task_id,
         is_completed,
+        status,
+        skip_reason,
         completed_at
       )
       values (
         saved_checklist_id,
         item_task_id,
         coalesce((item->>'isCompleted')::boolean, false),
+        coalesce(nullif(item->>'status', ''), case when coalesce((item->>'isCompleted')::boolean, false) then 'completed' else 'pending' end),
+        nullif(item->>'skipReason', ''),
         nullif(item->>'completedAt', '')::timestamptz
       )
       on conflict (checklist_id, task_id) do update
       set
         is_completed = excluded.is_completed,
+        status = excluded.status,
+        skip_reason = excluded.skip_reason,
         completed_at = excluded.completed_at;
     end if;
   end loop;
@@ -451,17 +477,23 @@ begin
         checklist_id,
         task_id,
         is_completed,
+        status,
+        skip_reason,
         completed_at
       )
       values (
         saved_checklist_id,
         item_task_id,
         coalesce((item->>'isCompleted')::boolean, false),
+        coalesce(nullif(item->>'status', ''), case when coalesce((item->>'isCompleted')::boolean, false) then 'completed' else 'pending' end),
+        nullif(item->>'skipReason', ''),
         nullif(item->>'completedAt', '')::timestamptz
       )
       on conflict (checklist_id, task_id) do update
       set
         is_completed = excluded.is_completed,
+        status = excluded.status,
+        skip_reason = excluded.skip_reason,
         completed_at = excluded.completed_at;
     end if;
   end loop;

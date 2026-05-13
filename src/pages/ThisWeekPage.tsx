@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import ChecklistDetailModal from '../components/ChecklistDetailModal'
+import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import PrimaryButton from '../components/PrimaryButton'
 import SectionCard from '../components/SectionCard'
 import StatusMessage from '../components/StatusMessage'
 import WeeklyCleaningDetailModal from '../components/WeeklyCleaningDetailModal'
 import {
-  getDailyChecklistCompletionStats,
   getDailyChecklistsForRange,
   getWeeklyCleaningStats,
   loadWeeklyCleaningDraft,
@@ -17,6 +17,7 @@ import {
   saveWeeklyCleaningDraft,
 } from '../lib/checklistStorage'
 import { getBarDate, getCurrentWeekRange } from '../lib/date'
+import { getDailyChecklistStats } from '../lib/checklistStats'
 import { fetchClosingChecklistsForRangeFromSupabase } from '../lib/supabaseDailyChecklists'
 import { fetchWeeklyCleaningDraft } from '../lib/supabaseWeeklyCleaning'
 import { getWorkerName } from '../lib/workers'
@@ -91,9 +92,9 @@ function getDayStatus(checklist: DailyChecklistDraft | undefined) {
     return 'Submitted'
   }
 
-  const hasCompletedItem = checklist.items.some((item) => item.isCompleted)
+  const stats = getDailyChecklistStats(checklist)
   const hasProgress = Boolean(
-    checklist.workerId || checklist.notes.trim() || hasCompletedItem,
+    checklist.workerId || checklist.notes.trim() || stats.resolved > 0,
   )
 
   return hasProgress ? 'In progress' : 'Incomplete'
@@ -256,6 +257,9 @@ function ThisWeekPage({
       ) : null}
 
       <div className="grid gap-3">
+        {!isLoading && checklists.length === 0 ? (
+          <EmptyState message="No closes found. Submitted and in-progress closes will appear here." />
+        ) : null}
         {weeks.map((week) => {
           const cleaningStats = getWeeklyCleaningStats(week.weeklyCleaning)
 
@@ -286,7 +290,7 @@ function ThisWeekPage({
                   const date = addDays(week.startDate, index)
                   const checklist = checklistsByDate.get(date)
                   const stats = checklist
-                    ? getDailyChecklistCompletionStats(checklist)
+                    ? getDailyChecklistStats(checklist, tasks)
                     : null
                   const workerName = checklist
                     ? getWorkerName(workers, checklist.workerId)
@@ -343,7 +347,7 @@ function ThisWeekPage({
                             {workerName}
                           </p>
                           <p className="text-sm font-bold text-[#1F1D1A]">
-                            {stats?.completed ?? 0} / {stats?.total ?? 0} done
+                            {stats?.resolved ?? 0} / {stats?.total ?? 0} resolved
                           </p>
                         </div>
                       ) : (

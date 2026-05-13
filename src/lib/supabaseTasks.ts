@@ -18,6 +18,7 @@ function mapTaskRow(row: TaskRow): ChecklistTask {
     taskType: row.task_type as TaskType,
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    isCritical: row.is_critical ?? false,
   }
 }
 
@@ -29,6 +30,7 @@ function mapTaskToInsert(task: ChecklistTask): TaskInsert {
     task_type: task.taskType,
     sort_order: task.sortOrder,
     is_active: task.isActive,
+    is_critical: task.isCritical ?? false,
   }
 
   if (isUuid(task.id)) {
@@ -98,6 +100,7 @@ export async function saveTaskToSupabase(
     task_type_value: task.taskType,
     task_sort_order: task.sortOrder,
     task_is_active: task.isActive,
+    task_is_critical: task.isCritical ?? false,
   })
 
   if (!rpcError && rpcData) {

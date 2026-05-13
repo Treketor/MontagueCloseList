@@ -3,11 +3,19 @@ import type {
   DailyChecklistDraft,
   WeeklyCleaningDraft,
 } from '../types'
+import { createPendingChecklistItem, normalizeChecklistItem } from './checklistStats'
 
 function getActiveDailyTasks(tasks: ChecklistTask[]) {
   return tasks
     .filter((task) => task.taskType === 'daily_closing' && task.isActive)
-    .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder)
+    .sort((firstTask, secondTask) => {
+      if (Boolean(firstTask.isCritical) !== Boolean(secondTask.isCritical)) {
+        return firstTask.isCritical ? -1 : 1
+      }
+
+      return firstTask.sortOrder - secondTask.sortOrder ||
+        firstTask.title.localeCompare(secondTask.title)
+    })
 }
 
 function getStorageItem(key: string) {
@@ -39,10 +47,7 @@ export function createEmptyDailyChecklist(
   return {
     barDate,
     workerId: null,
-    items: getActiveDailyTasks(tasks).map((task) => ({
-      taskId: task.id,
-      isCompleted: false,
-    })),
+    items: getActiveDailyTasks(tasks).map((task) => createPendingChecklistItem(task.id)),
     notes: '',
     submittedAt: null,
     updatedAt: new Date().toISOString(),
@@ -58,11 +63,9 @@ export function reconcileDailyChecklistWithTasks(
   const items = activeTasks.map((task) => {
     const existingItem = existingItems.get(task.id)
 
-    return {
-      taskId: task.id,
-      isCompleted: existingItem?.isCompleted ?? false,
-      completedAt: existingItem?.completedAt,
-    }
+    return existingItem
+      ? normalizeChecklistItem({ ...existingItem, taskId: task.id })
+      : createPendingChecklistItem(task.id)
   })
   const currentTaskIds = draft.items.map((item) => item.taskId).join('|')
   const nextTaskIds = items.map((item) => item.taskId).join('|')
@@ -133,7 +136,7 @@ export function loadDailyChecklist(
       notes: parsedDraft.notes,
       submittedAt: parsedDraft.submittedAt ?? null,
       updatedAt: parsedDraft.updatedAt,
-      items: parsedDraft.items,
+      items: parsedDraft.items.map((item) => normalizeChecklistItem(item)),
     }, tasks)
   } catch {
     return fallbackDraft
@@ -175,7 +178,10 @@ export function getAllLocalDailyChecklists(): DailyChecklistDraft[] {
       const parsedDraft = JSON.parse(value) as unknown
 
       if (isDraft(parsedDraft)) {
-        drafts.push(parsedDraft)
+        drafts.push({
+          ...parsedDraft,
+          items: parsedDraft.items.map((item) => normalizeChecklistItem(item)),
+        })
       }
     } catch {
       // Ignore invalid local drafts. A clean fallback is created on Today.
@@ -197,7 +203,7 @@ export function getDailyChecklistsForRange(
 }
 
 export function getDailyChecklistCompletionStats(draft: DailyChecklistDraft) {
-  const completed = draft.items.filter((item) => item.isCompleted).length
+  const completed = draft.items.filter((item) => normalizeChecklistItem(item).isCompleted).length
   const total = draft.items.length
 
   return {

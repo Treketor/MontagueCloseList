@@ -11,6 +11,7 @@ import {
 
 type TaskFormState = {
   description: string
+  isCritical: boolean
   section: TaskSection
   title: string
 }
@@ -25,6 +26,7 @@ type TaskTypeManagerProps = {
 
 const emptyForm: TaskFormState = {
   description: '',
+  isCritical: false,
   section: 'Bar',
   title: '',
 }
@@ -63,7 +65,16 @@ function groupTasks(tasks: ChecklistTask[], sections: TaskSection[]) {
   return sections
     .map((section) => ({
       section,
-      tasks: tasks.filter((task) => task.section === section),
+      tasks: tasks
+        .filter((task) => task.section === section)
+        .sort((firstTask, secondTask) => {
+          if (Boolean(firstTask.isCritical) !== Boolean(secondTask.isCritical)) {
+            return firstTask.isCritical ? -1 : 1
+          }
+
+          return firstTask.sortOrder - secondTask.sortOrder ||
+            firstTask.title.localeCompare(secondTask.title)
+        }),
     }))
     .filter((group) => group.tasks.length > 0)
 }
@@ -143,6 +154,7 @@ function TaskTypeManager({
       taskType,
       sortOrder: maxSortOrder + 1,
       isActive: true,
+      isCritical: addForm.isCritical,
     }
 
     persistTasks([...tasks, newTask])
@@ -159,6 +171,7 @@ function TaskTypeManager({
     setTaskError('')
     setEditForm({
       description: task.description ?? '',
+      isCritical: task.isCritical ?? false,
       section: task.section,
       title: task.title,
     })
@@ -191,6 +204,7 @@ function TaskTypeManager({
               ...currentTask,
               title: taskTitle,
               description: description || undefined,
+              isCritical: editForm.isCritical,
               section: editForm.section,
             }
           : currentTask,
@@ -227,6 +241,52 @@ function TaskTypeManager({
         currentTask.id === task.id ? { ...currentTask, isActive: true } : currentTask,
       ),
     )
+  }
+
+  function normalizeSortOrder(nextTasks: ChecklistTask[]) {
+    const typeVisibleTasks = nextTasks
+      .filter((task) => task.taskType === taskType)
+      .sort((firstTask, secondTask) =>
+        firstTask.section.localeCompare(secondTask.section) ||
+        firstTask.sortOrder - secondTask.sortOrder ||
+        firstTask.title.localeCompare(secondTask.title),
+      )
+    const sortOrderById = new Map(
+      typeVisibleTasks.map((task, index) => [task.id, (index + 1) * 10]),
+    )
+
+    return nextTasks.map((task) =>
+      sortOrderById.has(task.id)
+        ? { ...task, sortOrder: sortOrderById.get(task.id) ?? task.sortOrder }
+        : task,
+    )
+  }
+
+  function moveTask(task: ChecklistTask, direction: 'up' | 'down') {
+    const sectionTasks = activeTasks
+      .filter((currentTask) => currentTask.section === task.section)
+      .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder)
+    const currentIndex = sectionTasks.findIndex((currentTask) => currentTask.id === task.id)
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    const targetTask = sectionTasks[targetIndex]
+
+    if (!targetTask) {
+      return
+    }
+
+    const swappedTasks = tasks.map((currentTask) => {
+      if (currentTask.id === task.id) {
+        return { ...currentTask, sortOrder: targetTask.sortOrder }
+      }
+
+      if (currentTask.id === targetTask.id) {
+        return { ...currentTask, sortOrder: task.sortOrder }
+      }
+
+      return currentTask
+    })
+
+    persistTasks(normalizeSortOrder(swappedTasks))
   }
 
   function renderTask(task: ChecklistTask) {
@@ -287,6 +347,20 @@ function TaskTypeManager({
                 ))}
               </select>
             </label>
+            <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-3 text-base font-bold text-[#1F1D1A]">
+              <input
+                checked={editForm.isCritical}
+                className="h-5 w-5 accent-[#1F1D1A]"
+                onChange={(event) =>
+                  setEditForm((currentForm) => ({
+                    ...currentForm,
+                    isCritical: event.target.checked,
+                  }))
+                }
+                type="checkbox"
+              />
+              Mark as important
+            </label>
             {editError ? <StatusMessage tone="warning">{editError}</StatusMessage> : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <PrimaryButton type="submit">Save</PrimaryButton>
@@ -309,6 +383,11 @@ function TaskTypeManager({
                 ].join(' ')}
               >
                 {task.title}
+                {task.isCritical ? (
+                  <span className="ml-2 inline-flex rounded-full border border-[#DED8CF] bg-[#EFE8DD] px-2 py-0.5 align-middle text-xs font-extrabold text-[#6F6A63]">
+                    Important
+                  </span>
+                ) : null}
               </p>
               {task.description ? (
                 <p className="mt-2 text-base leading-relaxed text-[#6F6A63]">
@@ -319,7 +398,34 @@ function TaskTypeManager({
                 {task.section}
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-5">
+              <button
+                className={secondaryButtonClass}
+                disabled={
+                  activeTasks
+                    .filter((currentTask) => currentTask.section === task.section)
+                    .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder)
+                    .findIndex((currentTask) => currentTask.id === task.id) <= 0
+                }
+                onClick={() => moveTask(task, 'up')}
+                type="button"
+              >
+                Move up
+              </button>
+              <button
+                className={secondaryButtonClass}
+                disabled={
+                  activeTasks
+                    .filter((currentTask) => currentTask.section === task.section)
+                    .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder)
+                    .findIndex((currentTask) => currentTask.id === task.id) >=
+                  activeTasks.filter((currentTask) => currentTask.section === task.section).length - 1
+                }
+                onClick={() => moveTask(task, 'down')}
+                type="button"
+              >
+                Move down
+              </button>
               <button
                 className={secondaryButtonClass}
                 onClick={() => startEditing(task)}
@@ -470,6 +576,20 @@ function TaskTypeManager({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-3 text-base font-bold text-[#1F1D1A]">
+            <input
+              checked={addForm.isCritical}
+              className="h-5 w-5 accent-[#1F1D1A]"
+              onChange={(event) =>
+                setAddForm((currentForm) => ({
+                  ...currentForm,
+                  isCritical: event.target.checked,
+                }))
+              }
+              type="checkbox"
+            />
+            Mark as important
           </label>
           {addError ? <StatusMessage tone="warning">{addError}</StatusMessage> : null}
           <div className="grid gap-3 sm:grid-cols-2">

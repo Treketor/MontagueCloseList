@@ -26,7 +26,7 @@ function StatusMessage({ children, tone = 'neutral' }: StatusMessageProps) {
   return (
     <div
       className={[
-        'flex items-start gap-3 rounded-xl border p-4 text-base font-semibold leading-relaxed',
+        'flex animate-rise-in items-start gap-3 rounded-xl border p-4 text-base font-semibold leading-relaxed motion-reduce:animate-none',
         toneClasses[tone],
       ].join(' ')}
     >

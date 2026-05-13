@@ -7,6 +7,10 @@ type AppShellProps<T extends string> = {
   barDate: string
   children: ReactNode
   syncDetail?: string
+  lastSyncErrorAt?: string | null
+  lastSyncErrorMessage?: string
+  lastSuccessfulSyncAt?: string | null
+  onRefreshCloudData?: () => Promise<void> | void
   syncStatus?: 'ready' | 'syncing' | 'issue'
   navItems: NavItem<T>[]
   onNavigate: (screen: T) => void
@@ -17,6 +21,10 @@ function AppShell<T extends string>({
   barDate,
   children,
   syncDetail,
+  lastSyncErrorAt,
+  lastSyncErrorMessage,
+  lastSuccessfulSyncAt,
+  onRefreshCloudData,
   syncStatus = 'ready',
   navItems,
   onNavigate,
@@ -34,7 +42,14 @@ function AppShell<T extends string>({
             </p>
           </div>
           <div className="text-right">
-            <SyncStatus status={syncStatus} />
+            <SyncStatus
+              detail={syncDetail}
+              lastSyncErrorAt={lastSyncErrorAt}
+              lastSyncErrorMessage={lastSyncErrorMessage}
+              lastSuccessfulSyncAt={lastSuccessfulSyncAt}
+              onRefreshCloudData={onRefreshCloudData}
+              status={syncStatus}
+            />
             {syncDetail ? (
               <p className="mt-1 text-xs font-semibold text-[#6F6A63]">
                 {syncDetail}
@@ -49,8 +64,13 @@ function AppShell<T extends string>({
         />
       </header>
 
-      <main className="mx-auto w-full max-w-[1040px] flex-1 px-5 py-4 pb-8 pl-[max(1.25rem,var(--safe-area-left))] pr-[max(1.25rem,var(--safe-area-right))] sm:px-6">
+      <main
+        className="mx-auto w-full max-w-[1040px] flex-1 px-5 py-4 pb-8 pl-[max(1.25rem,var(--safe-area-left))] pr-[max(1.25rem,var(--safe-area-right))] sm:px-6"
+        key={String(activeScreen)}
+      >
+        <div className="animate-rise-in motion-reduce:animate-none">
         {children}
+        </div>
       </main>
     </div>
   )

@@ -37,7 +37,12 @@
 - [ ] Tick several daily tasks.
 - [ ] Refresh and confirm progress remains.
 - [ ] Add close notes and confirm they persist.
-- [ ] Try submitting before all tasks are complete and confirm it is blocked.
+- [ ] Try submitting with a pending task and confirm it is blocked.
+- [ ] Try skipping a task without a reason and confirm it is blocked.
+- [ ] Skip a task with a reason and confirm it appears as skipped.
+- [ ] Try submitting with a skipped task but no close notes and confirm it is blocked.
+- [ ] Add close notes, submit with the skipped task, and confirm it succeeds.
+- [ ] Confirm the close summary appears after submit.
 - [ ] Complete all tasks and submit.
 - [ ] Confirm `submitted_at` is set in Supabase.
 - [ ] Uncheck a task after submit and confirm the submitted state clears.
@@ -59,6 +64,14 @@
 - [ ] Uncheck a task and confirm worker/time are cleared.
 - [ ] Add a weekly cleaning task in Manage Tasks and confirm it appears incomplete.
 - [ ] Disable a weekly cleaning task and confirm it disappears after refresh/reconciliation.
+
+## Manager Tools
+
+- [ ] Mark a task as important and confirm the Important label appears on checklists.
+- [ ] Move a task up/down and confirm the order persists after refresh.
+- [ ] Open Review closes and confirm skipped/incomplete closes appear under Needs attention.
+- [ ] Open Sync details from the header and confirm the modal opens.
+- [ ] Confirm empty states appear when there are no daily or weekly tasks.
 
 ## iPad Home Screen Flow
 

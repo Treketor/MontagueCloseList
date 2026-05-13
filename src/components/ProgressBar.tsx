@@ -29,7 +29,7 @@ function ProgressBar({ completed, showText = true, total }: ProgressBarProps) {
         role="progressbar"
       >
         <div
-          className="h-full rounded-full bg-[#1F1D1A]"
+          className="h-full rounded-full bg-[#1F1D1A] transition-[width] duration-200 ease-out motion-reduce:transition-none"
           style={{ width: `${percentage}%` }}
         />
       </div>

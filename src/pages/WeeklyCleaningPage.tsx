@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import AppModal from '../components/AppModal'
+import CompletionConfetti from '../components/CompletionConfetti'
+import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import PrimaryButton from '../components/PrimaryButton'
 import ProgressBar from '../components/ProgressBar'
@@ -49,7 +52,14 @@ function groupTasksBySection(tasks: ChecklistTask[]) {
       section,
       tasks: tasks
         .filter((task) => task.section === section && task.isActive)
-        .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder),
+        .sort((firstTask, secondTask) => {
+          if (Boolean(firstTask.isCritical) !== Boolean(secondTask.isCritical)) {
+            return firstTask.isCritical ? -1 : 1
+          }
+
+          return firstTask.sortOrder - secondTask.sortOrder ||
+            firstTask.title.localeCompare(secondTask.title)
+        }),
     }))
     .filter((group) => group.tasks.length > 0)
 }
@@ -95,6 +105,9 @@ function WeeklyCleaningPage({
   const [isDraftLoaded, setIsDraftLoaded] = useState(!isCloudSyncEnabled)
   const skipNextCloudSave = useRef(false)
   const draftRevision = useRef(0)
+  const hasWatchedCompletion = useRef(false)
+  const wasComplete = useRef(false)
+  const [completionConfettiKey, setCompletionConfettiKey] = useState(0)
   const weekRange = useMemo(() => getCurrentWeekRange(), [])
   const taskGroups = useMemo(
     () => groupTasksBySection(weeklyCleaningTasks),
@@ -110,6 +123,22 @@ function WeeklyCleaningPage({
   const readableWeekRange = `${formatReadableDate(
     weekRange.startDate,
   )} - ${formatReadableDate(weekRange.endDate)}`
+
+  useEffect(() => {
+    const isComplete = stats.total > 0 && stats.completed === stats.total
+
+    if (!hasWatchedCompletion.current) {
+      hasWatchedCompletion.current = true
+      wasComplete.current = isComplete
+      return
+    }
+
+    if (isComplete && !wasComplete.current) {
+      setCompletionConfettiKey((currentKey) => currentKey + 1)
+    }
+
+    wasComplete.current = isComplete
+  }, [stats.completed, stats.total])
 
   useEffect(() => {
     onHeaderStatusChange(
@@ -351,6 +380,7 @@ function WeeklyCleaningPage({
 
   return (
     <div className="grid gap-4">
+      <CompletionConfetti fireKey={completionConfettiKey} />
       <div className="grid gap-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="text-left sm:[&>div]:mb-0 sm:[&>div]:text-left">
           <PageHeader title="Weekly Cleaning" description={readableWeekRange} />
@@ -364,6 +394,11 @@ function WeeklyCleaningPage({
         </PrimaryButton>
       </div>
 
+      {weeklyCleaningTasks.length === 0 ? (
+        <EmptyState message="No weekly cleaning tasks set up. Ask a manager to add cleaning tasks in Manage." />
+      ) : null}
+
+      {weeklyCleaningTasks.length > 0 ? (
       <SectionCard>
         <div className="grid gap-4">
           <div className="grid gap-2">
@@ -421,41 +456,25 @@ function WeeklyCleaningPage({
           })}
         </div>
       </SectionCard>
-
-      {pendingTaskId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1D1A]/70 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-[#FFFCF7] p-5 text-[#1F1D1A] shadow-[0_20px_60px_rgba(31,29,26,0.18)]">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-extrabold">
-                  Who completed this?
-                </h2>
-                <p className="mt-1 text-base font-semibold text-[#6F6A63]">
-                  Select a worker to mark the cleaning task complete.
-                </p>
-              </div>
-              <button
-                className="min-h-11 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] px-5 text-base font-bold text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
-                onClick={() => {
-                  setPendingTaskId(null)
-                  setPendingWorkerId(null)
-                  setWarning('')
-                }}
-                type="button"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <WorkerSelector
-              onCreateWorker={onCreateWorker}
-              onSelectWorker={handleSelectWorker}
-              selectedWorkerId={pendingWorkerId}
-              workers={workers}
-            />
-          </div>
-        </div>
       ) : null}
+
+      <AppModal
+        description="Select a worker to mark the cleaning task complete."
+        isOpen={Boolean(pendingTaskId)}
+        onClose={() => {
+          setPendingTaskId(null)
+          setPendingWorkerId(null)
+          setWarning('')
+        }}
+        title="Who completed this?"
+      >
+        <WorkerSelector
+          onCreateWorker={onCreateWorker}
+          onSelectWorker={handleSelectWorker}
+          selectedWorkerId={pendingWorkerId}
+          workers={workers}
+        />
+      </AppModal>
     </div>
   )
 }

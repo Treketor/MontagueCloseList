@@ -5,6 +5,7 @@ import type {
   ClosingChecklistRow,
 } from '../types.supabase'
 import { isUuid } from './ids'
+import { getItemStatus, normalizeChecklistItem } from './checklistStats'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 function warn(message: string, detail?: unknown) {
@@ -23,11 +24,19 @@ function mapRowsToDraft(
     notes: checklist.notes ?? '',
     submittedAt: checklist.submitted_at,
     updatedAt: checklist.updated_at,
-    items: items.map((item) => ({
-      taskId: item.task_id,
-      isCompleted: item.is_completed,
-      completedAt: item.completed_at ?? undefined,
-    })),
+    items: items.map((item) =>
+      normalizeChecklistItem({
+        taskId: item.task_id,
+        isCompleted: item.is_completed,
+        status: item.status === 'completed' || item.status === 'skipped'
+          ? item.status
+          : item.is_completed
+            ? 'completed'
+            : 'pending',
+        completedAt: item.completed_at ?? undefined,
+        skipReason: item.skip_reason ?? undefined,
+      }),
+    ),
   }
 }
 
@@ -80,8 +89,10 @@ export async function upsertClosingChecklistToSupabase(
     .filter((item) => isUuid(item.taskId))
     .map((item) => ({
       taskId: item.taskId,
-      isCompleted: item.isCompleted,
-      completedAt: item.completedAt ?? null,
+      isCompleted: getItemStatus(item) === 'completed',
+      status: getItemStatus(item),
+      skipReason: getItemStatus(item) === 'skipped' ? item.skipReason ?? '' : null,
+      completedAt: getItemStatus(item) === 'completed' ? item.completedAt ?? null : null,
     }))
 
   const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -140,8 +151,10 @@ export async function upsertClosingChecklistToSupabase(
     .map((item) => ({
       checklist_id: checklistRow.id,
       task_id: item.taskId,
-      is_completed: item.isCompleted,
-      completed_at: item.completedAt ?? null,
+      is_completed: getItemStatus(item) === 'completed',
+      status: getItemStatus(item),
+      skip_reason: getItemStatus(item) === 'skipped' ? item.skipReason ?? '' : null,
+      completed_at: getItemStatus(item) === 'completed' ? item.completedAt ?? null : null,
     }))
 
   if (itemRows.length !== draft.items.length) {
@@ -168,6 +181,8 @@ export async function upsertClosingChecklistToSupabase(
     checklist_id: checklistRow.id,
     task_id: item.task_id,
     is_completed: item.is_completed,
+    status: item.status,
+    skip_reason: item.skip_reason ?? null,
     completed_at: item.completed_at ?? null,
   })))
 }

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AppModal from '../components/AppModal'
 import ChecklistTaskRow from '../components/ChecklistTaskRow'
+import CloseSummary from '../components/CloseSummary'
+import CompletionConfetti from '../components/CompletionConfetti'
+import EmptyState from '../components/EmptyState'
 import HomeScreenHint from '../components/HomeScreenHint'
+import PrimaryButton from '../components/PrimaryButton'
 import ProgressBar from '../components/ProgressBar'
 import SectionCard from '../components/SectionCard'
 import StatusMessage from '../components/StatusMessage'
@@ -10,6 +15,13 @@ import {
   reconcileDailyChecklistWithTasks,
   saveDailyChecklist,
 } from '../lib/checklistStorage'
+import {
+  createPendingChecklistItem,
+  getDailyChecklistStats,
+  getItemStatus,
+  isItemCompleted,
+  isItemSkipped,
+} from '../lib/checklistStats'
 import {
   fetchClosingChecklistByBarDate,
   upsertClosingChecklistToSupabase,
@@ -47,7 +59,14 @@ function groupTasksBySection(tasks: ChecklistTask[]) {
       section,
       tasks: tasks
         .filter((task) => task.section === section && task.isActive)
-        .sort((firstTask, secondTask) => firstTask.sortOrder - secondTask.sortOrder),
+        .sort((firstTask, secondTask) => {
+          if (Boolean(firstTask.isCritical) !== Boolean(secondTask.isCritical)) {
+            return firstTask.isCritical ? -1 : 1
+          }
+
+          return firstTask.sortOrder - secondTask.sortOrder ||
+            firstTask.title.localeCompare(secondTask.title)
+        }),
     }))
     .filter((group) => group.tasks.length > 0)
 }
@@ -96,11 +115,17 @@ function TodayPage({
     [dailyClosingTasks],
   )
   const [warning, setWarning] = useState('')
+  const [skipTaskId, setSkipTaskId] = useState<string | null>(null)
+  const [skipReason, setSkipReason] = useState('')
+  const [showSummary, setShowSummary] = useState(false)
   const [syncStatus, setSyncStatus] = useState('Saved on this device')
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(isCloudSyncEnabled)
   const [isChecklistLoaded, setIsChecklistLoaded] = useState(!isCloudSyncEnabled)
   const skipNextCloudSave = useRef(false)
   const draftRevision = useRef(0)
+  const hasWatchedCompletion = useRef(false)
+  const wasComplete = useRef(false)
+  const [completionConfettiKey, setCompletionConfettiKey] = useState(0)
   const [draft, setDraft] = useState(() => {
     const loadedDraft = reconcileDailyChecklistWithTasks(
       loadDailyChecklist(barDate, dailyClosingTasks),
@@ -121,9 +146,24 @@ function TodayPage({
 
     return nextDraft
   })
-  const completedCount = draft.items.filter((item) => item.isCompleted).length
-  const totalCount = draft.items.length
-  const remainingCount = Math.max(totalCount - completedCount, 0)
+  const stats = getDailyChecklistStats(draft, dailyClosingTasks)
+  const skipTask = dailyClosingTasks.find((task) => task.id === skipTaskId)
+
+  useEffect(() => {
+    const isComplete = stats.total > 0 && stats.resolved === stats.total
+
+    if (!hasWatchedCompletion.current) {
+      hasWatchedCompletion.current = true
+      wasComplete.current = isComplete
+      return
+    }
+
+    if (isComplete && !wasComplete.current) {
+      setCompletionConfettiKey((currentKey) => currentKey + 1)
+    }
+
+    wasComplete.current = isComplete
+  }, [stats.resolved, stats.total])
 
   useEffect(() => {
     onHeaderStatusChange(
@@ -265,16 +305,14 @@ function TodayPage({
               return item
             }
 
-            if (item.isCompleted) {
-              return {
-                taskId: item.taskId,
-                isCompleted: false,
-              }
+            if (isItemCompleted(item)) {
+              return createPendingChecklistItem(item.taskId)
             }
 
             return {
               taskId: item.taskId,
               isCompleted: true,
+              status: 'completed',
               completedAt: new Date().toISOString(),
             }
           }),
@@ -282,6 +320,104 @@ function TodayPage({
         { clearSubmitted: true },
       ),
     )
+  }
+
+  function handleOpenSkip(taskId: string) {
+    const item = getItemState(draft, taskId)
+    setSkipTaskId(taskId)
+    setSkipReason(isItemSkipped(item) ? item?.skipReason ?? '' : '')
+    setWarning('')
+  }
+
+  function handleSaveSkipReason() {
+    const trimmedReason = skipReason.trim()
+
+    if (!skipTaskId || !trimmedReason) {
+      setWarning('Add a reason before skipping the task.')
+      return
+    }
+
+    setWarning('')
+    setSyncStatus('Saved on this device')
+    draftRevision.current += 1
+    setDraft((currentDraft) =>
+      updateDraft(
+        currentDraft,
+        {
+          items: currentDraft.items.map((item) =>
+            item.taskId === skipTaskId
+              ? {
+                  taskId: item.taskId,
+                  isCompleted: false,
+                  status: 'skipped',
+                  skipReason: trimmedReason,
+                }
+              : item,
+          ),
+        },
+        { clearSubmitted: true },
+      ),
+    )
+    setSkipTaskId(null)
+    setSkipReason('')
+  }
+
+  function handleMarkPending(taskId: string) {
+    setWarning('')
+    setSyncStatus('Saved on this device')
+    draftRevision.current += 1
+    setDraft((currentDraft) =>
+      updateDraft(
+        currentDraft,
+        {
+          items: currentDraft.items.map((item) =>
+            item.taskId === taskId ? createPendingChecklistItem(item.taskId) : item,
+          ),
+        },
+        { clearSubmitted: true },
+      ),
+    )
+  }
+
+  function getSubmitValidationMessage() {
+    if (!selectedWorkerId) {
+      return 'Select a worker before submitting.'
+    }
+
+    if (stats.skippedWithoutReason > 0) {
+      return 'Add reasons for skipped tasks.'
+    }
+
+    if (stats.pending > 0 || stats.resolved < stats.total) {
+      return 'Resolve all tasks before submitting.'
+    }
+
+    if (stats.hasSkipped && !draft.notes.trim()) {
+      return 'Add close notes before submitting with skipped tasks.'
+    }
+
+    return ''
+  }
+
+  function handleSubmitClose() {
+    const validationMessage = getSubmitValidationMessage()
+
+    if (validationMessage) {
+      setWarning(validationMessage)
+      return
+    }
+
+    setWarning('')
+    setSyncStatus('Saved on this device')
+    draftRevision.current += 1
+    const submittedAt = new Date().toISOString()
+    setDraft((currentDraft) =>
+      updateDraft(currentDraft, {
+        workerId: selectedWorkerId,
+        submittedAt,
+      }),
+    )
+    setShowSummary(true)
   }
 
   function handleNotesChange(notes: string) {
@@ -294,7 +430,8 @@ function TodayPage({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 pb-24">
+      <CompletionConfetti fireKey={completionConfettiKey} />
       <HomeScreenHint />
 
       <WorkerSelector
@@ -310,6 +447,13 @@ function TodayPage({
         </StatusMessage>
       ) : null}
 
+      {dailyClosingTasks.length === 0 ? (
+        <EmptyState
+          message="No daily close tasks set up. Ask a manager to add tasks in Manage."
+        />
+      ) : null}
+
+      {dailyClosingTasks.length > 0 ? (
       <SectionCard>
         <div className="grid gap-4">
           <div className="grid gap-2">
@@ -319,17 +463,17 @@ function TodayPage({
               </h2>
               <div className="text-right">
                 <p className="text-base font-extrabold text-[#1F1D1A]">
-                  {completedCount} / {totalCount} complete
+                  {stats.resolved} / {stats.total} resolved
                 </p>
                 <p className="text-sm font-semibold text-[#6F6A63]">
-                  {remainingCount} left
+                  {stats.completed} completed · {stats.skipped} skipped · {stats.left} left
                 </p>
               </div>
             </div>
             <ProgressBar
-              completed={completedCount}
+              completed={stats.resolved}
               showText={false}
-              total={totalCount}
+              total={stats.total}
             />
           </div>
 
@@ -355,14 +499,19 @@ function TodayPage({
                 <ul>
                 {group.tasks.map((task) => {
                   const itemState = getItemState(draft, task.id)
+                  const status = getItemStatus(itemState)
 
                   return (
                     <li key={task.id}>
                       <ChecklistTaskRow
                         completedAt={itemState?.completedAt}
                         disabled={!selectedWorkerId}
-                        isCompleted={itemState?.isCompleted ?? false}
+                        isCompleted={status === 'completed'}
+                        isSkipped={status === 'skipped'}
+                        onMarkPending={() => handleMarkPending(task.id)}
+                        onSkip={() => handleOpenSkip(task.id)}
                         onToggle={() => handleToggleTask(task.id)}
+                        skipReason={itemState?.skipReason}
                         task={task}
                       />
                     </li>
@@ -386,8 +535,92 @@ function TodayPage({
           {warning ? (
             <StatusMessage tone="warning">{warning}</StatusMessage>
           ) : null}
+
+          {draft.submittedAt ? (
+            <StatusMessage tone="success">
+              Close submitted. You can still edit tasks and submit again if needed.
+            </StatusMessage>
+          ) : null}
         </div>
       </SectionCard>
+      ) : null}
+
+      {dailyClosingTasks.length > 0 ? (
+        <div className="sticky bottom-3 z-30 rounded-2xl border border-[#DED8CF] bg-[#FFFCF7]/95 p-3 shadow-sm backdrop-blur">
+          <div className="grid gap-3 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-base font-extrabold text-[#1F1D1A]">
+                {stats.resolved} / {stats.total} resolved
+              </p>
+              <p className="text-sm font-semibold text-[#6F6A63]">
+                {stats.completed} completed · {stats.skipped} skipped · {stats.left} left
+              </p>
+            </div>
+            <div className="grid gap-2 sm:flex sm:items-center">
+              {draft.submittedAt ? (
+                <button
+                  className="interactive-press min-h-12 rounded-xl border border-[#DED8CF] px-4 text-base font-extrabold text-[#1F1D1A]"
+                  onClick={() => setShowSummary(true)}
+                  type="button"
+                >
+                  View summary
+                </button>
+              ) : null}
+              <PrimaryButton onClick={handleSubmitClose}>
+                Submit close
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <AppModal
+        description={skipTask?.title}
+        isOpen={Boolean(skipTaskId)}
+        onClose={() => {
+          setSkipTaskId(null)
+          setSkipReason('')
+        }}
+        title="Skip task"
+      >
+        <div className="grid gap-4">
+          <label className="grid gap-2 text-base font-extrabold text-[#1F1D1A]">
+            Reason
+            <textarea
+              className="min-h-28 rounded-xl border border-[#DED8CF] bg-[#FFFCF7] p-3 text-base font-medium leading-relaxed text-[#1F1D1A] placeholder:text-[#6F6A63] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+              onChange={(event) => setSkipReason(event.target.value)}
+              placeholder="Why is this task being skipped?"
+              value={skipReason}
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PrimaryButton onClick={handleSaveSkipReason}>Save reason</PrimaryButton>
+            <button
+              className="interactive-press min-h-12 rounded-xl border border-[#DED8CF] px-4 text-base font-extrabold text-[#1F1D1A]"
+              onClick={() => {
+                setSkipTaskId(null)
+                setSkipReason('')
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </AppModal>
+
+      <AppModal
+        isOpen={showSummary}
+        onClose={() => setShowSummary(false)}
+        title="Close summary"
+      >
+        <CloseSummary
+          checklist={draft}
+          onClose={() => setShowSummary(false)}
+          tasks={dailyClosingTasks}
+          workerName={selectedWorker?.name ?? 'No worker selected'}
+        />
+      </AppModal>
     </div>
   )
 }

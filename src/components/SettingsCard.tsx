@@ -11,11 +11,11 @@ type SettingsCardProps = {
 function SettingsCard({ description, icon, onClick, title }: SettingsCardProps) {
   return (
     <button
-      className="grid min-h-24 grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border border-[#DED8CF] bg-[#FFFCF7] p-5 text-left active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]"
+      className="interactive-press grid min-h-24 grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border border-[#DED8CF] bg-[#FFFCF7] p-5 text-left hover:bg-[#F7F4EF] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#F7F4EF]"
       onClick={onClick}
       type="button"
     >
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] text-[#1F1D1A]">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#DED8CF] bg-[#F7F4EF] text-[#1F1D1A] transition-colors duration-150 ease-out">
         {icon}
       </span>
       <span className="min-w-0">

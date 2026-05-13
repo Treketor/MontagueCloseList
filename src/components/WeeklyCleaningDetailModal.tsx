@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { formatReadableDate } from '../lib/date'
 import { getWorkerName } from '../lib/workers'
 import type {
@@ -75,9 +76,9 @@ function WeeklyCleaningDetailModal({
   weekEndDate.setDate(weekEndDate.getDate() + 6)
   const weekEndDateString = weekEndDate.toISOString().slice(0, 10)
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#1F1D1A]/70 p-4 sm:p-8">
-      <div className="mx-auto flex max-h-full max-w-4xl flex-col rounded-2xl bg-[#FFFCF7] text-[#1F1D1A]">
+  return createPortal(
+    <div className="fixed inset-0 z-50 animate-fade-in bg-[#1F1D1A]/70 p-4 motion-reduce:animate-none sm:p-8">
+      <div className="mx-auto flex max-h-full max-w-4xl animate-rise-in flex-col rounded-2xl bg-[#FFFCF7] text-[#1F1D1A] motion-reduce:animate-none">
         <div className="flex items-start justify-between gap-4 border-b border-[#DED8CF] p-5">
           <div>
             <p className="text-3xl font-extrabold leading-tight">
@@ -88,7 +89,7 @@ function WeeklyCleaningDetailModal({
             </p>
           </div>
           <button
-            className="min-h-12 shrink-0 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+            className="interactive-press min-h-12 shrink-0 rounded-xl border border-[#1F1D1A] bg-[#1F1D1A] px-6 text-lg font-bold text-[#FFFCF7] active:bg-[#3A352F] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
             onClick={onClose}
             type="button"
           >
@@ -148,7 +149,8 @@ function WeeklyCleaningDetailModal({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

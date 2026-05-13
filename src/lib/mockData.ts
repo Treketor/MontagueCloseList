@@ -50,14 +50,16 @@ export const mockDailyClosingTasks: ChecklistTask[] = [
     taskType: 'daily_closing',
     sortOrder: 50,
     isActive: true,
+    isCritical: true,
   },
   {
     id: 'daily-turn-off-music',
-    title: 'Turn off music',
+    title: 'Turn off music and screens',
     section: 'Bar',
     taskType: 'daily_closing',
     sortOrder: 60,
     isActive: true,
+    isCritical: true,
   },
   {
     id: 'daily-clear-floor-glasses',
@@ -149,6 +151,7 @@ export const mockDailyClosingTasks: ChecklistTask[] = [
     taskType: 'daily_closing',
     sortOrder: 170,
     isActive: true,
+    isCritical: true,
   },
   {
     id: 'daily-submit-close-notes',
@@ -158,14 +161,25 @@ export const mockDailyClosingTasks: ChecklistTask[] = [
     taskType: 'daily_closing',
     sortOrder: 180,
     isActive: true,
+    isCritical: true,
   },
   {
     id: 'daily-lock-back-door',
-    title: 'Lock back door',
+    title: 'Lock doors',
     section: 'Admin',
     taskType: 'daily_closing',
     sortOrder: 190,
     isActive: true,
+    isCritical: true,
+  },
+  {
+    id: 'daily-final-walk-through',
+    title: 'Final venue walk-through',
+    section: 'Admin',
+    taskType: 'daily_closing',
+    sortOrder: 200,
+    isActive: true,
+    isCritical: true,
   },
 ]
 

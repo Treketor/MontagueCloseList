@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 type AppModalProps = {
@@ -44,9 +45,9 @@ function AppModal({
     return null
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F1D1A]/35 p-4"
+      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-[#1F1D1A]/35 p-4 motion-reduce:animate-none"
       onMouseDown={onClose}
       role="presentation"
     >
@@ -54,6 +55,7 @@ function AppModal({
         aria-modal="true"
         className={[
           'flex max-h-[82dvh] w-full flex-col overflow-hidden rounded-2xl border border-[#DED8CF] bg-[#FFFCF7] text-[#1F1D1A]',
+          'animate-rise-in motion-reduce:animate-none',
           sizeClass[size],
         ].join(' ')}
         onMouseDown={(event) => event.stopPropagation()}
@@ -70,7 +72,7 @@ function AppModal({
           </div>
           <button
             aria-label="Close"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[#DED8CF] bg-[#F7F4EF] text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
+            className="interactive-press inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[#DED8CF] bg-[#F7F4EF] text-[#1F1D1A] active:bg-[#EFE8DD] focus:outline-none focus:ring-2 focus:ring-[#1F1D1A] focus:ring-offset-2 focus:ring-offset-[#FFFCF7]"
             onClick={onClose}
             type="button"
           >
@@ -79,7 +81,8 @@ function AppModal({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

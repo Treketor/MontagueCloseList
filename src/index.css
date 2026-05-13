@@ -55,3 +55,83 @@ textarea {
 body {
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes closelist-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes closelist-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes closelist-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) rotate(0deg) scale(0.86);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-x), var(--confetti-y), 0)
+      rotate(var(--confetti-r)) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: closelist-fade-in 160ms ease-out both;
+}
+
+.animate-rise-in {
+  animation: closelist-rise-in 180ms ease-out both;
+}
+
+.interactive-press {
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out,
+    opacity 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+.interactive-press:active {
+  transform: scale(0.98);
+}
+
+.closelist-confetti-piece {
+  animation: closelist-confetti-fall 850ms ease-out both;
+  box-shadow: 0 1px 1px rgb(31 29 26 / 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .interactive-press:active {
+    transform: none;
+  }
+}

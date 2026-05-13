@@ -121,6 +121,28 @@ The app currently uses Supabase for workers, task editing, daily closing checkli
 - Delete test rows from Supabase if needed before real use.
 - Run through [docs/QA_CHECKLIST.md](docs/QA_CHECKLIST.md).
 
+## Operational Features
+
+### Skipped Tasks And Close Notes
+
+Daily close tasks can be marked completed or skipped. Skipped tasks require a reason, and submitting a close with any skipped task also requires close notes.
+
+### Important Tasks
+
+Managers can mark tasks as important. Important tasks are shown with a subtle label and appear first inside their section, which makes skipped or pending critical work easier to review.
+
+### Manager Review Mode
+
+The Manage page includes Review closes. It shows recent closes from the last four weeks and highlights incomplete, skipped, noted, and submitted closes.
+
+### Task Ordering
+
+Daily close and weekly cleaning task managers include Move up and Move down controls. Ordering is saved through the same cloud/local task save flow.
+
+### Sync Details
+
+Tap the sync status in the header to see cloud readiness, last successful sync, last sync issue, local cache status, and a Refresh cloud data action.
+
 ## Safety Notes
 
 This app uses a lightweight manager code, not full user authentication.

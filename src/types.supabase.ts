@@ -22,6 +22,7 @@ export type TaskRow = {
   task_type: string
   sort_order: number
   is_active: boolean
+  is_critical?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -34,6 +35,7 @@ export type TaskInsert = {
   task_type: string
   sort_order: number
   is_active: boolean
+  is_critical?: boolean
 }
 
 export type TaskUpdate = Partial<TaskInsert>
@@ -64,6 +66,8 @@ export type ClosingChecklistItemRow = {
   checklist_id: string
   task_id: string
   is_completed: boolean
+  status?: string
+  skip_reason?: string | null
   completed_at: string | null
   created_at?: string
   updated_at?: string
@@ -73,6 +77,8 @@ export type ClosingChecklistItemInsert = {
   checklist_id: string
   task_id: string
   is_completed: boolean
+  status?: string
+  skip_reason?: string | null
   completed_at?: string | null
 }
 

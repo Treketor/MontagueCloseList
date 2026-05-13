@@ -8,6 +8,7 @@ import {
 import {
   ClipboardCheck,
   ClipboardList,
+  SearchCheck,
   Sparkles,
   Stethoscope,
   UsersRound,
@@ -18,6 +19,7 @@ import SectionCard from '../components/SectionCard'
 import SettingsCard from '../components/SettingsCard'
 import StatusMessage from '../components/StatusMessage'
 import DiagnosticsPanel from '../components/manage/DiagnosticsPanel'
+import ManagerReviewPanel from '../components/manage/ManagerReviewPanel'
 import TaskCleanupManager from '../components/manage/TaskCleanupManager'
 import TaskTypeManager from '../components/manage/TaskTypeManager'
 import WorkersManager from '../components/manage/WorkersManager'
@@ -31,6 +33,7 @@ type ManageTasksPageProps = {
   onRefreshCloudData: () => Promise<void> | void
   onSaveTasks: (tasks: ChecklistTask[]) => Promise<void> | void
   onSaveWorker: (worker: Worker) => Promise<boolean> | boolean
+  isCloudSyncEnabled: boolean
   setupDataStatus: string
   tasks: ChecklistTask[]
   workers: Worker[]
@@ -41,6 +44,7 @@ type ManageModal =
   | 'daily'
   | 'weekly'
   | 'cleanup'
+  | 'review'
   | 'diagnostics'
   | null
 
@@ -62,6 +66,7 @@ function ManageTasksPage({
   onRefreshCloudData,
   onSaveTasks,
   onSaveWorker,
+  isCloudSyncEnabled,
   setupDataStatus,
   tasks,
   workers,
@@ -266,6 +271,12 @@ function ManageTasksPage({
           title="Task Cleanup"
         />
         <SettingsCard
+          description="See incomplete, skipped, and submitted closes."
+          icon={<SearchCheck aria-hidden="true" className="h-6 w-6" />}
+          onClick={() => setActiveModal('review')}
+          title="Review closes"
+        />
+        <SettingsCard
           description="Check sync status and local cache."
           icon={<Stethoscope aria-hidden="true" className="h-6 w-6" />}
           onClick={() => setActiveModal('diagnostics')}
@@ -327,6 +338,20 @@ function ManageTasksPage({
         title="Task Cleanup"
       >
         <TaskCleanupManager onSaveTasks={onSaveTasks} tasks={tasks} />
+      </AppModal>
+
+      <AppModal
+        description="See incomplete, skipped, and submitted closes."
+        isOpen={activeModal === 'review'}
+        onClose={() => setActiveModal(null)}
+        size="lg"
+        title="Review closes"
+      >
+        <ManagerReviewPanel
+          isCloudSyncEnabled={isCloudSyncEnabled}
+          tasks={tasks}
+          workers={workers}
+        />
       </AppModal>
 
       <AppModal
